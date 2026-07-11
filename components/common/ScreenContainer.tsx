@@ -8,6 +8,7 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "../../context/ThemeContext";
 
 type ScreenContainerProps = {
   children: React.ReactNode;
@@ -20,21 +21,37 @@ export default function ScreenContainer({
   scrollable = true,
   style,
 }: ScreenContainerProps) {
+  const { colors } = useTheme();
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: colors.background }]}
+    >
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         {scrollable ? (
           <ScrollView
-            contentContainerStyle={[styles.content, style]}
+            contentContainerStyle={[
+              styles.content,
+              { backgroundColor: colors.background },
+              style,
+            ]}
             showsVerticalScrollIndicator={false}
           >
             {children}
           </ScrollView>
         ) : (
-          <View style={[styles.content, style]}>{children}</View>
+          <View
+            style={[
+              styles.content,
+              { backgroundColor: colors.background },
+              style,
+            ]}
+          >
+            {children}
+          </View>
         )}
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -42,16 +59,14 @@ export default function ScreenContainer({
 }
 
 const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
   safeArea: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+  },
+  flex: {
+    flex: 1,
   },
   content: {
     flexGrow: 1,
     padding: 20,
-    backgroundColor: "#F8FAFC",
   },
 });
