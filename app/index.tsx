@@ -1,15 +1,5 @@
-import { View, Text } from "react-native";
+import HomeScreen from "../screens/HomeScreen";
 
-export default function Home() {
-  return (
-    <View
-      style={{
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <Text>Welcome to TenaFit </Text>
-    </View>
-  );
+export default function Index() {
+  return <HomeScreen />;
 }
