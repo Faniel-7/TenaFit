@@ -18,25 +18,13 @@ const THEME_KEY = "@tenafit_theme";
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeMode>("light");
+  const [theme, setThemeState] = useState<ThemeMode>("dark");
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const loadTheme = async () => {
-      try {
-        const saved = await AsyncStorage.getItem(THEME_KEY);
-        if (saved === "dark" || saved === "light") {
-          setThemeState(saved);
-        }
-      } catch (error) {
-        console.log("Failed to load theme", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadTheme();
-  }, []);
+useEffect(() => {
+  setThemeState("dark");
+  setLoading(false);
+}, []);
 
   const setTheme = async (mode: ThemeMode) => {
     setThemeState(mode);
