@@ -1,5 +1,5 @@
 import React from "react";
-import {View,StyleSheet} from "react-native";
+import {View,StyleSheet, Pressable, Text} from "react-native";
 
 
 import ScreenContainer from "../../components/common/ScreenContainer";
@@ -76,6 +76,11 @@ onPress={()=>{
 }}
 />
 
+<Pressable onPress={() => router.push("/auth/login")}>
+  <Text style={{ color: "#FFC107", fontWeight: "700", marginTop: 24, fontSize: 16, textAlign: "center" }}>
+    Already have an account? Login
+  </Text>
+</Pressable>
 
 
 </View>
