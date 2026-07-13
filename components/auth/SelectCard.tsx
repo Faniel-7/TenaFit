@@ -83,27 +83,27 @@ subtitle &&
 const styles=StyleSheet.create({
 
 card:{
-height:90,
-borderRadius:20,
+height:72,
+borderRadius:18,
 borderWidth:1.5,
-paddingHorizontal:20,
+paddingHorizontal:18,
 justifyContent:"center",
-marginBottom:15
+marginBottom:12,
 },
 
 title:{
 color:"#fff",
-fontSize:18,
+fontSize:16,
 fontWeight:"800",
 marginLeft:45,
-marginTop:-30
+marginTop:-26
 },
 
 subtitle:{
 color:"#999",
-fontSize:13,
+fontSize:12,
 marginLeft:45,
-marginTop:5
+marginTop:4,
 }
 
 });

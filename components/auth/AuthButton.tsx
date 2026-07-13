@@ -37,13 +37,15 @@ style={styles.button}
 
 const styles=StyleSheet.create({
 
-button:{
-height:60,
-borderRadius:18,
-backgroundColor:"#FFC107",
-justifyContent:"center",
-alignItems:"center",
-marginTop:15
+button: {
+  width: "88%",
+  alignSelf: "center",
+  height: 56,
+  borderRadius: 18,
+  backgroundColor: "#FFC107",
+  justifyContent: "center",
+  alignItems: "center",
+  marginTop: 20,
 },
 
 text:{

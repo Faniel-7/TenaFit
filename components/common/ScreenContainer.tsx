@@ -3,70 +3,76 @@ import {
   ScrollView,
   StyleSheet,
   View,
-  ViewStyle,
-  KeyboardAvoidingView,
   Platform,
+  ViewStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../context/ThemeContext";
 
-type ScreenContainerProps = {
+type Props = {
   children: React.ReactNode;
   scrollable?: boolean;
-  style?: ViewStyle;
+  wide?: boolean;
 };
 
 export default function ScreenContainer({
   children,
   scrollable = true,
-  style,
-}: ScreenContainerProps) {
+  wide = false,
+}: Props) {
   const { colors } = useTheme();
+  const isWeb = Platform.OS === "web";
+
+  const innerStyle: ViewStyle[] = [
+    styles.inner,
+    ...(isWeb && !wide ? [styles.webInnerNarrow] : []),
+    ...(isWeb && wide ? [styles.webInnerWide] : []),
+  ];
 
   return (
-    <SafeAreaView
-      style={[styles.safeArea, { backgroundColor: colors.background }]}
-    >
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        {scrollable ? (
-          <ScrollView
-            contentContainerStyle={[
-              styles.content,
-              { backgroundColor: colors.background },
-              style,
-            ]}
-            showsVerticalScrollIndicator={false}
-          >
-            {children}
-          </ScrollView>
-        ) : (
-          <View
-            style={[
-              styles.content,
-              { backgroundColor: colors.background },
-              style,
-            ]}
-          >
-            {children}
-          </View>
-        )}
-      </KeyboardAvoidingView>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+      {scrollable ? (
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={innerStyle}>{children}</View>
+        </ScrollView>
+      ) : (
+        <View style={styles.flex}>
+          <View style={innerStyle}>{children}</View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  safe: {
     flex: 1,
   },
   flex: {
     flex: 1,
   },
-  content: {
+  scrollContent: {
     flexGrow: 1,
-    padding: 20,
+    alignItems: "center",
+  },
+  inner: {
+    width: "100%",
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+  },
+  webInnerNarrow: {
+    maxWidth: 390,
+    alignSelf: "center",
+  },
+  webInnerWide: {
+    maxWidth: 1200,
+    alignSelf: "center",
+    paddingHorizontal: 70,
   },
 });
