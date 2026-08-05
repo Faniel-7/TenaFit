@@ -80,7 +80,7 @@ marginBottom:15
 input:{
 flex:1,
 marginLeft:12,
-fontSize:16
+fontSize:20,
 }
 
 });
