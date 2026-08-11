@@ -1,17 +1,16 @@
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-} from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-type MacroType = "protein" | "carbs" | "fats";
+export type MacroType =
+  | "protein"
+  | "carbs"
+  | "fats";
 
-type Props = {
+type MacroCardProps = {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
-  current: number;
+  value: number;
   target: number;
   type: MacroType;
 };
@@ -19,21 +18,14 @@ type Props = {
 export default function MacroCard({
   icon,
   title,
-  current,
+  value,
   target,
   type,
-}: Props) {
+}: MacroCardProps) {
   const percentage =
     target > 0
-      ? Math.min((current / target) * 100, 100)
+      ? Math.round((value / target) * 100)
       : 0;
-
-  const color =
-    type === "protein"
-      ? "#FFC107"
-      : type === "carbs"
-      ? "#82D94E"
-      : "#C060FF";
 
   return (
     <View style={styles.macroCard}>
@@ -48,15 +40,24 @@ export default function MacroCard({
         >
           <Ionicons
             name={icon}
-            size={23}
-            color={color}
+            size={22}
+            color={
+              type === "protein"
+                ? "#FFC107"
+                : type === "carbs"
+                ? "#82D94E"
+                : "#C060FF"
+            }
           />
         </View>
 
         <Text
+          numberOfLines={1}
           style={[
             styles.macroTitle,
-            { color },
+            type === "protein" && styles.proteinText,
+            type === "carbs" && styles.carbsText,
+            type === "fats" && styles.fatsText,
           ]}
         >
           {title}
@@ -64,7 +65,7 @@ export default function MacroCard({
       </View>
 
       <Text style={styles.macroValue}>
-        {current}
+        {value}
         <Text style={styles.macroTarget}>
           {" "}
           / {target} g
@@ -76,9 +77,11 @@ export default function MacroCard({
           style={[
             styles.macroFill,
             {
-              width: `${percentage}%`,
-              backgroundColor: color,
+              width: `${Math.min(percentage, 100)}%`,
             },
+            type === "protein" && styles.proteinFill,
+            type === "carbs" && styles.carbsFill,
+            type === "fats" && styles.fatsFill,
           ]}
         />
       </View>
@@ -86,10 +89,12 @@ export default function MacroCard({
       <Text
         style={[
           styles.macroPercentage,
-          { color },
+          type === "protein" && styles.proteinText,
+          type === "carbs" && styles.carbsText,
+          type === "fats" && styles.fatsText,
         ]}
       >
-        {Math.round(percentage)}%
+        {percentage}%
       </Text>
     </View>
   );
@@ -98,26 +103,29 @@ export default function MacroCard({
 const styles = StyleSheet.create({
   macroCard: {
     flex: 1,
-    minHeight: 215,
-    borderRadius: 22,
+    minWidth: 0,
+    minHeight: 180,
+    borderRadius: 19,
     borderWidth: 1,
     borderColor: "#2A303C",
     backgroundColor: "#0D1119",
-    padding: 22,
+    padding: 18,
   },
 
   macroTop: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 13,
+    gap: 9,
+    minWidth: 0,
   },
 
   macroIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 49,
+    height: 49,
+    borderRadius: 25,
     justifyContent: "center",
     alignItems: "center",
+    flexShrink: 0,
   },
 
   proteinIcon: {
@@ -139,39 +147,65 @@ const styles = StyleSheet.create({
   },
 
   macroTitle: {
-    fontSize: 19,
+    fontSize: 15,
     fontWeight: "900",
+    flexShrink: 1,
+  },
+
+  proteinText: {
+    color: "#FFC107",
+  },
+
+  carbsText: {
+    color: "#82D94E",
+  },
+
+  fatsText: {
+    color: "#C060FF",
   },
 
   macroValue: {
     color: "#FFFFFF",
-    fontSize: 31,
+    fontSize: 26,
     fontWeight: "900",
-    marginTop: 15,
+    marginTop: 14,
   },
 
   macroTarget: {
     color: "#B4BAC4",
-    fontSize: 17,
+    fontSize: 14,
     fontWeight: "500",
   },
 
   macroTrack: {
-    height: 13,
-    borderRadius: 8,
+    width: "100%",
+    height: 10,
+    borderRadius: 6,
     backgroundColor: "#202632",
     overflow: "hidden",
-    marginTop: 19,
+    marginTop: 16,
   },
 
   macroFill: {
     height: "100%",
-    borderRadius: 8,
+    borderRadius: 6,
+  },
+
+  proteinFill: {
+    backgroundColor: "#FFC107",
+  },
+
+  carbsFill: {
+    backgroundColor: "#82D94E",
+  },
+
+  fatsFill: {
+    backgroundColor: "#C060FF",
   },
 
   macroPercentage: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: "900",
-    marginTop: 16,
+    marginTop: 12,
   },
 });
