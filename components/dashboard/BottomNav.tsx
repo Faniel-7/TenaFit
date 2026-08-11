@@ -7,82 +7,45 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-type NavItemData = {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
+type BottomNavProps = {
+  onAddPress?: () => void;
 };
-
-type Props = {
-  active?: string;
-  onNavigate?: (label: string) => void;
-};
-
-const items: NavItemData[] = [
-  {
-    icon: "home",
-    label: "Home",
-  },
-  {
-    icon: "calendar-outline",
-    label: "Plan",
-  },
-  {
-    icon: "bar-chart-outline",
-    label: "Progress",
-  },
-  {
-    icon: "person-circle-outline",
-    label: "Profile",
-  },
-];
 
 export default function BottomNav({
-  active = "Home",
-  onNavigate,
-}: Props) {
+  onAddPress,
+}: BottomNavProps) {
   return (
     <View style={styles.bottomNav}>
       <NavItem
-        {...items[0]}
-        active={active === items[0].label}
-        onPress={() =>
-          onNavigate?.(items[0].label)
-        }
+        icon="home"
+        label="Home"
+        active
       />
 
       <NavItem
-        {...items[1]}
-        active={active === items[1].label}
-        onPress={() =>
-          onNavigate?.(items[1].label)
-        }
+        icon="calendar-outline"
+        label="Plan"
       />
 
       <Pressable
         style={styles.addButton}
-        onPress={() => onNavigate?.("Add")}
+        onPress={onAddPress}
       >
         <Ionicons
           name="add"
-          size={38}
+          size={36}
           color="#111111"
         />
       </Pressable>
 
       <NavItem
-        {...items[2]}
-        active={active === items[2].label}
-        onPress={() =>
-          onNavigate?.(items[2].label)
-        }
+        icon="bar-chart-outline"
+        label="Progress"
       />
 
       <NavItem
-        {...items[3]}
-        active={active === items[3].label}
-        onPress={() =>
-          onNavigate?.(items[3].label)
-        }
+        icon="person-circle-outline"
+        label="Profile"
       />
     </View>
   );
@@ -91,20 +54,17 @@ export default function BottomNav({
 function NavItem({
   icon,
   label,
-  active,
-  onPress,
-}: NavItemData & {
-  active: boolean;
-  onPress: () => void;
+  active = false,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  active?: boolean;
 }) {
   return (
-    <Pressable
-      style={styles.navItem}
-      onPress={onPress}
-    >
+    <Pressable style={styles.navItem}>
       <Ionicons
         name={icon}
-        size={26}
+        size={25}
         color={
           active
             ? "#FFC107"
@@ -127,30 +87,30 @@ function NavItem({
 const styles = StyleSheet.create({
   bottomNav: {
     position: "absolute",
-    left: 22,
-    right: 22,
-    bottom: 18,
-    height: 90,
-    borderRadius: 24,
+    left: 12,
+    right: 12,
+    bottom: 10,
+    height: 73,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: "#2A303C",
     backgroundColor: "#0D1119",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
-    paddingHorizontal: 15,
+    paddingHorizontal: 8,
   },
 
   navItem: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 5,
+    gap: 3,
   },
 
   navLabel: {
     color: "#9CA3AF",
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: "700",
   },
 
@@ -159,12 +119,12 @@ const styles = StyleSheet.create({
   },
 
   addButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: "#FFC107",
     justifyContent: "center",
     alignItems: "center",
-    marginHorizontal: 8,
+    marginHorizontal: 5,
   },
 });
