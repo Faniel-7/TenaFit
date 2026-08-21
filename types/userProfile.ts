@@ -1,5 +1,9 @@
 import { UserGoal } from "./nutrition";
 
+export type Gender =
+  | "male"
+  | "female";
+
 export type ActivityLevel =
   | "none"
   | "light"
@@ -13,7 +17,7 @@ export type FoodPreference =
 export interface UserProfile {
   age: number;
 
-  gender: "male" | "female";
+  gender: Gender;
 
   heightCm: number;
 
