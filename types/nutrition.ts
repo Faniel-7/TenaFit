@@ -1,4 +1,6 @@
-export type FoodCuisine = "local" | "other";
+export type FoodCuisine =
+  | "local"
+  | "other";
 
 export type FoodCategory =
   | "cereal"
@@ -18,38 +20,37 @@ export type FoodCategory =
   | "soup"
   | "mixed";
 
+export type PreparationType =
+  | "raw"
+  | "cooked"
+  | "mixed";
+
 export type UserGoal =
   | "weightLoss"
   | "maintenance"
   | "weightGain";
+
+export type MealType =
+  | "breakfast"
+  | "lunch"
+  | "dinner"
+  | "snack";
 
 export interface Food {
   id: string;
 
   name: string;
 
-  /**
-   * English name from the food source.
-   */
   nameEnglish: string;
 
-  /**
-   * Optional Amharic name.
-   */
   nameAmharic?: string;
 
-  /**
-   * local = Ethiopian/local food
-   * other = international/other food
-   */
   cuisine: FoodCuisine;
 
   category: FoodCategory;
 
-  /**
-   * Nutrition values are based on the serving
-   * specified below.
-   */
+  preparation: PreparationType;
+
   servingSize: number;
 
   servingUnit: string;
@@ -62,30 +63,19 @@ export interface Food {
 
   fat: number;
 
-  fiber?: number;
+  fiber: number;
 
-  /**
-   * Whether the food can generally be used
-   * for each user goal.
-   */
   suitableFor: {
     weightLoss: boolean;
     maintenance: boolean;
     weightGain: boolean;
   };
 
-  /**
-   * Extra information useful for filtering.
-   */
+  suitableMeals: MealType[];
+
   tags: string[];
 
-  /**
-   * Raw, cooked, or mixed dish.
-   */
-  preparation?: "raw" | "cooked" | "mixed";
+  source: string;
 
-  /**
-   * Reference/source information.
-   */
-  source?: string;
+  sourceCode?: string;
 }
