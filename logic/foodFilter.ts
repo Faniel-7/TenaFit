@@ -1,17 +1,54 @@
-import { Food, FoodCuisine, UserGoal } from "../types/nutrition";
+import {
+  Food,
+  MealType,
+  UserGoal,
+} from "../types/nutrition";
+
+import {
+  FoodPreference,
+} from "../types/userProfile";
 
 export function filterFoods(
   foods: Food[],
-  cuisine: FoodCuisine,
-  goal: UserGoal
+  preference: FoodPreference,
+  goal: UserGoal,
+  meal?: MealType
 ): Food[] {
   return foods.filter((food) => {
-    const matchesCuisine =
-      food.cuisine === cuisine;
-
     const matchesGoal =
       food.suitableFor[goal];
 
-    return matchesCuisine && matchesGoal;
+    if (!matchesGoal) {
+      return false;
+    }
+
+    const matchesMeal =
+      !meal ||
+      food.suitableMeals.includes(meal);
+
+    if (!matchesMeal) {
+      return false;
+    }
+
+    /*
+     * LOCAL ONLY
+     */
+    if (preference === "local") {
+      return food.cuisine === "local";
+    }
+
+    /*
+     * OTHER ONLY
+     */
+    if (preference === "other") {
+      return food.cuisine === "other";
+    }
+
+    /*
+     * LOCAL + OTHER
+     *
+     * Both cuisines are allowed.
+     */
+    return true;
   });
 }
