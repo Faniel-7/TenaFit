@@ -1,13 +1,15 @@
-import { UserGoal } from "./nutrition";
+export type Gender = "male" | "female";
 
-export type Gender =
-  | "male"
-  | "female";
+export type WeightGoal =
+  | "lose"
+  | "maintain"
+  | "gain";
 
 export type ActivityLevel =
-  | "none"
+  | "sedentary"
   | "light"
-  | "heavy";
+  | "moderate"
+  | "hard";
 
 export type FoodPreference =
   | "local"
@@ -16,19 +18,16 @@ export type FoodPreference =
 
 export interface UserProfile {
   age: number;
-
   gender: Gender;
 
   heightCm: number;
-
   weightKg: number;
 
-  goal: UserGoal;
+  goal: WeightGoal;
 
   activityLevel: ActivityLevel;
 
   daysPerWeek: number;
-
   minutesPerDay: number;
 
   foodPreference: FoodPreference;
