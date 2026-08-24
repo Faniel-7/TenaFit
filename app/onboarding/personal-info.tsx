@@ -1,27 +1,71 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+} from "react-native";
+
 import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+
 import ScreenContainer from "../../components/common/ScreenContainer";
 import AuthHeader from "../../components/auth/AuthHeader";
 import AuthInput from "../../components/auth/AuthInput";
 import AuthButton from "../../components/auth/AuthButton";
 import StepIndicator from "../../components/auth/StepIndicator";
 import SelectCard from "../../components/auth/SelectCard";
-import { Pressable } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
 export default function PersonalInfoScreen() {
-  const [selectedGender, setSelectedGender] = useState<"male" | "female" | "other" | null>(null);
+  const [age, setAge] = useState("");
+
+  const [selectedGender, setSelectedGender] = useState<
+    "male" | "female" | "other" | null
+  >(null);
+
+  const handleContinue = () => {
+    if (!age.trim()) {
+      return;
+    }
+
+    if (!selectedGender) {
+      return;
+    }
+
+    router.push({
+      pathname: "/onboarding/physical-info",
+      params: {
+        age,
+        gender: selectedGender,
+      },
+    });
+  };
 
   return (
     <ScreenContainer>
       <View style={styles.container}>
 
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={20} color="#FFC107" />
+        {/* BACK BUTTON */}
+
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.backBtn}
+        >
+          <Ionicons
+            name="arrow-back"
+            size={20}
+            color="#FFC107"
+          />
         </Pressable>
 
-        <StepIndicator current={1} total={6} />
+        {/* STEP INDICATOR */}
+
+        <StepIndicator
+          current={1}
+          total={6}
+        />
+
+        {/* HEADER */}
 
         <AuthHeader
           title="Personal"
@@ -29,36 +73,59 @@ export default function PersonalInfoScreen() {
           subtitle="Tell us the basics we need for your nutrition plan"
         />
 
-        <AuthInput icon="calendar-outline" placeholder="Age" />
+        {/* AGE */}
 
-        <Text style={styles.label}>Gender</Text>
+        <AuthInput
+          icon="calendar-outline"
+          placeholder="Age"
+          value={age}
+          onChangeText={setAge}
+          keyboardType="numeric"
+        />
+
+        {/* GENDER */}
+
+        <Text style={styles.label}>
+          Gender
+        </Text>
 
         <SelectCard
           title="Male"
           subtitle="Biological sex"
           icon="male-outline"
           selected={selectedGender === "male"}
-          onPress={() => setSelectedGender("male")}
+          onPress={() =>
+            setSelectedGender("male")
+          }
         />
+
         <SelectCard
           title="Female"
           subtitle="Biological sex"
           icon="female-outline"
           selected={selectedGender === "female"}
-          onPress={() => setSelectedGender("female")}
+          onPress={() =>
+            setSelectedGender("female")
+          }
         />
+
         <SelectCard
           title="Prefer not to say"
           subtitle="Prefer not to say"
           icon="person-outline"
           selected={selectedGender === "other"}
-          onPress={() => setSelectedGender("other")}
+          onPress={() =>
+            setSelectedGender("other")
+          }
         />
+
+        {/* CONTINUE */}
 
         <AuthButton
           title="Continue"
-          onPress={() => router.push("/onboarding/physical-info")}
+          onPress={handleContinue}
         />
+
       </View>
     </ScreenContainer>
   );
@@ -69,19 +136,21 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 28,
   },
+
   backBtn: {
-  width: 40,
-  height: 40,
-  borderRadius: 20,
-  backgroundColor: "#17171E",
-  borderWidth: 1,
-  borderColor: "#2A2A2A",
-  justifyContent: "center",
-  alignItems: "center",
-  marginBottom: 18,
-},
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#17171E",
+    borderWidth: 1,
+    borderColor: "#2A2A2A",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 18,
+  },
+
   label: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 18,
     fontWeight: "800",
     marginTop: 8,
