@@ -1,137 +1,151 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, Pressable, Platform } from "react-native";
-import { router } from "expo-router";
+import {
+  View,
+  StyleSheet,
+  Pressable,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { router, useLocalSearchParams } from "expo-router";
 
 import ScreenContainer from "../../components/common/ScreenContainer";
 import AuthHeader from "../../components/auth/AuthHeader";
 import AuthButton from "../../components/auth/AuthButton";
 import StepIndicator from "../../components/auth/StepIndicator";
+import SelectCard from "../../components/auth/SelectCard";
 
-const isWeb = Platform.OS === "web";
-
-const DAYS = [1, 2, 3, 4, 5, 6, 7];
-const MINUTES = [15, 30, 45, 60, 75, 90, 120];
+type Commitment =
+  | "1-2"
+  | "3-4"
+  | "5-6"
+  | "7";
 
 export default function CommitmentScreen() {
-  const [day, setDay] = useState(5);
-  const [minute, setMinute] = useState(60);
+  const params = useLocalSearchParams<{
+    age?: string;
+    gender?: string;
+    height?: string;
+    weight?: string;
+    goal?: string;
+    activity?: string;
+  }>();
+
+  const [selectedCommitment, setSelectedCommitment] =
+    useState<Commitment | null>(null);
+
+  const handleContinue = () => {
+    if (!selectedCommitment) {
+      return;
+    }
+
+    router.push({
+      pathname: "/onboarding/food-preference",
+      params: {
+        age: params.age ?? "",
+        gender: params.gender ?? "",
+        height: params.height ?? "",
+        weight: params.weight ?? "",
+        goal: params.goal ?? "",
+        activity: params.activity ?? "",
+        commitment: selectedCommitment,
+      },
+    });
+  };
 
   return (
-    <ScreenContainer wide={isWeb}>
+    <ScreenContainer>
       <View style={styles.container}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={20} color="#FFC107" />
+
+        {/* BACK BUTTON */}
+
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.backBtn}
+        >
+          <Ionicons
+            name="arrow-back"
+            size={20}
+            color="#FFC107"
+          />
         </Pressable>
 
-        <StepIndicator current={5} total={6} />
+        {/* STEP INDICATOR */}
+
+        <StepIndicator
+          current={5}
+          total={7}
+        />
+
+        {/* HEADER */}
 
         <AuthHeader
           title="Weekly"
           highlight="Commitment"
-          subtitle="Tell us how much time you can realistically dedicate."
+          subtitle="How many days can you realistically commit to exercise?"
         />
 
-        {isWeb ? (
-          <View style={styles.webLayout}>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.section}>Days per week</Text>
+        {/* 1–2 DAYS */}
 
-              <View style={styles.grid}>
-                {DAYS.map((item) => (
-                  <Pressable
-                    key={item}
-                    style={[styles.option, day === item && styles.selected]}
-                    onPress={() => setDay(item)}
-                  >
-                    <Text
-                      style={[
-                        styles.optionText,
-                        day === item && styles.selectedText,
-                      ]}
-                    >
-                      {item}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
+        <SelectCard
+          title="1–2 Days"
+          subtitle="A relaxed start"
+          icon="calendar-outline"
+          selected={
+            selectedCommitment === "1-2"
+          }
+          onPress={() =>
+            setSelectedCommitment("1-2")
+          }
+        />
 
-            <View style={styles.sectionContainer}>
-              <Text style={styles.section}>Workout time per day</Text>
+        {/* 3–4 DAYS */}
 
-              <View style={styles.grid}>
-                {MINUTES.map((item) => (
-                  <Pressable
-                    key={item}
-                    style={[styles.option, minute === item && styles.selected]}
-                    onPress={() => setMinute(item)}
-                  >
-                    <Text
-                      style={[
-                        styles.optionText,
-                        minute === item && styles.selectedText,
-                      ]}
-                    >
-                      {item} min
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-          </View>
-        ) : (
-          <>
-            <Text style={styles.section}>Days per week</Text>
+        <SelectCard
+          title="3–4 Days"
+          subtitle="A balanced routine"
+          icon="calendar-outline"
+          selected={
+            selectedCommitment === "3-4"
+          }
+          onPress={() =>
+            setSelectedCommitment("3-4")
+          }
+        />
 
-            <View style={styles.grid}>
-              {DAYS.map((item) => (
-                <Pressable
-                  key={item}
-                  style={[styles.option, day === item && styles.selected]}
-                  onPress={() => setDay(item)}
-                >
-                  <Text
-                    style={[
-                      styles.optionText,
-                      day === item && styles.selectedText,
-                    ]}
-                  >
-                    {item}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+        {/* 5–6 DAYS */}
 
-            <Text style={styles.section}>Workout time per day</Text>
+        <SelectCard
+          title="5–6 Days"
+          subtitle="A serious commitment"
+          icon="calendar-outline"
+          selected={
+            selectedCommitment === "5-6"
+          }
+          onPress={() =>
+            setSelectedCommitment("5-6")
+          }
+        />
 
-            <View style={styles.grid}>
-              {MINUTES.map((item) => (
-                <Pressable
-                  key={item}
-                  style={[styles.option, minute === item && styles.selected]}
-                  onPress={() => setMinute(item)}
->
-                  <Text
-                    style={[
-                      styles.optionText,
-                      minute === item && styles.selectedText,
-                    ]}
-                  >
-                    {item} min
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </>
-        )}
+        {/* 7 DAYS */}
 
-        <View style={isWeb ? styles.webButtonWrap : styles.buttonWrap}>
-          <AuthButton
-            title="Continue"
-            onPress={() => router.push("/onboarding/review")}
-          />
-        </View>
+        <SelectCard
+          title="7 Days"
+          subtitle="Daily activity"
+          icon="flame-outline"
+          selected={
+            selectedCommitment === "7"
+          }
+          onPress={() =>
+            setSelectedCommitment("7")
+          }
+        />
+
+        {/* CONTINUE */}
+
+        <AuthButton
+          title="Continue"
+          onPress={handleContinue}
+        />
+
       </View>
     </ScreenContainer>
   );
@@ -140,7 +154,7 @@ export default function CommitmentScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 28,
+    paddingTop: 50,
   },
 
   backBtn: {
@@ -153,69 +167,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 18,
-  },
-
-  webLayout: {
-    width: "100%",
-    flexDirection: "column",
-    justifyContent: "space-between",
-    alignItems: "stretch",
-    marginTop: 10,
-    marginBottom: 12,
-  },
-
-  sectionContainer: {
-    width: "100%",
-    marginBottom: 20,
-  },
-
-  section: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "800",
-    marginBottom: 16,
-  },
-
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-
-  option: {
-    width: "30%",
-    height: 60,
-    borderRadius: 18,
-    backgroundColor: "#18181F",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#2A2A2A",
-  },
-
-  selected: {
-    backgroundColor: "#FFC107",
-    borderColor: "#FFC107",
-  },
-
-  optionText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-
-  selectedText: {
-    color: "#111111",
-  },
-
-  buttonWrap: {
-    marginTop: 6,
-  },
-
-  webButtonWrap: {
-    width: 280,
-    alignSelf: "center",
-    marginTop: 10,
   },
 });
