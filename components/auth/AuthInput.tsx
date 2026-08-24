@@ -1,86 +1,81 @@
 import React from "react";
 import {
-View,
-TextInput,
-StyleSheet
+  View,
+  TextInput,
+  StyleSheet,
+  KeyboardTypeOptions,
 } from "react-native";
 
-import {Ionicons} from "@expo/vector-icons";
-import {useTheme} from "../../context/ThemeContext";
+import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../../context/ThemeContext";
 
-
-type Props={
-placeholder:string;
-icon:any;
-secureTextEntry?:boolean;
+type Props = {
+  placeholder: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  secureTextEntry?: boolean;
+  value?: string;
+  onChangeText?: (text: string) => void;
+  keyboardType?: KeyboardTypeOptions;
 };
 
-
 export default function AuthInput({
-placeholder,
-icon,
-secureTextEntry
-}:Props){
+  placeholder,
+  icon,
+  secureTextEntry,
+  value,
+  onChangeText,
+  keyboardType,
+}: Props) {
+  const { colors } = useTheme();
 
-const {colors}=useTheme();
+  return (
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: "#17171E",
+          borderColor: colors.border,
+        },
+      ]}
+    >
+      <Ionicons
+        name={icon}
+        size={22}
+        color="#9CA3AF"
+      />
 
-
-return(
-
-<View style={[
-styles.container,
-{
-backgroundColor:"#17171E",
-borderColor:colors.border
-}
-]}>
-
-<Ionicons
-name={icon}
-size={22}
-color="#9CA3AF"
-/>
-
-
-<TextInput
-
-placeholder={placeholder}
-
-placeholderTextColor="#777"
-
-secureTextEntry={secureTextEntry}
-
-style={[
-styles.input,
-{color:colors.text}
-]}
-
-/>
-
-</View>
-
-)
-
+      <TextInput
+        placeholder={placeholder}
+        placeholderTextColor="#777"
+        secureTextEntry={secureTextEntry}
+        value={value}
+        onChangeText={onChangeText}
+        keyboardType={keyboardType}
+        style={[
+          styles.input,
+          {
+            color: colors.text,
+          },
+        ]}
+      />
+    </View>
+  );
 }
 
+const styles = StyleSheet.create({
+  container: {
+    height: 62,
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 18,
+    marginBottom: 15,
+  },
 
-const styles=StyleSheet.create({
-
-container:{
-height:62,
-borderRadius:18,
-borderWidth:1,
-flexDirection:"row",
-alignItems:"center",
-paddingHorizontal:18,
-marginBottom:15
-},
-
-
-input:{
-flex:1,
-marginLeft:12,
-fontSize:20,
-}
-
+  input: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 20,
+  },
 });
