@@ -1,124 +1,143 @@
-import React, {useState} from "react";
-import {View,StyleSheet} from "react-native";
-import { Pressable } from "react-native";
+import React, { useState } from "react";
+import {
+  View,
+  StyleSheet,
+  Pressable,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { router, useLocalSearchParams } from "expo-router";
+
 import ScreenContainer from "../../components/common/ScreenContainer";
 import AuthHeader from "../../components/auth/AuthHeader";
 import AuthButton from "../../components/auth/AuthButton";
 import StepIndicator from "../../components/auth/StepIndicator";
 import SelectCard from "../../components/auth/SelectCard";
-import {router} from "expo-router";
 
+type Goal = "lose" | "maintain" | "gain";
 
-export default function GoalScreen(){
+export default function GoalScreen() {
+  const params = useLocalSearchParams<{
+    age?: string;
+    gender?: string;
+    height?: string;
+    weight?: string;
+  }>();
 
-const [selected,setSelected]=useState("");
+  const [selectedGoal, setSelectedGoal] =
+    useState<Goal | null>(null);
 
+  const handleContinue = () => {
+    if (!selectedGoal) {
+      return;
+    }
 
-return(
+    router.push({
+      pathname: "/onboarding/activity",
+      params: {
+        age: params.age ?? "",
+        gender: params.gender ?? "",
+        height: params.height ?? "",
+        weight: params.weight ?? "",
+        goal: selectedGoal,
+      },
+    });
+  };
 
-<ScreenContainer>
+  return (
+    <ScreenContainer>
+      <View style={styles.container}>
 
-<View style={styles.container}>
+        {/* BACK BUTTON */}
 
-<Pressable onPress={() => router.back()} style={styles.backBtn}>
-  <Ionicons name="arrow-back" size={20} color="#FFC107" />
-</Pressable>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.backBtn}
+        >
+          <Ionicons
+            name="arrow-back"
+            size={20}
+            color="#FFC107"
+          />
+        </Pressable>
 
-<StepIndicator current={3} total={6}/>
+        {/* STEP INDICATOR */}
 
+        <StepIndicator
+          current={3}
+          total={6}
+        />
 
-<AuthHeader
+        {/* HEADER */}
 
-title="Choose"
+        <AuthHeader
+          title="Your"
+          highlight="Goal"
+          subtitle="What would you like to achieve?"
+        />
 
-highlight="Your Goal"
+        {/* LOSE WEIGHT */}
 
-subtitle="What do you want to achieve?"
+        <SelectCard
+          title="Lose Weight"
+          subtitle="Burn fat and reach a healthier weight"
+          icon="trending-down-outline"
+          selected={selectedGoal === "lose"}
+          onPress={() =>
+            setSelectedGoal("lose")
+          }
+        />
 
-/>
+        {/* MAINTAIN */}
 
+        <SelectCard
+          title="Maintain Weight"
+          subtitle="Keep your current weight and stay healthy"
+          icon="remove-outline"
+          selected={selectedGoal === "maintain"}
+          onPress={() =>
+            setSelectedGoal("maintain")
+          }
+        />
 
-<SelectCard
+        {/* GAIN */}
 
-title="Lose Weight"
+        <SelectCard
+          title="Gain Weight"
+          subtitle="Build healthy weight and muscle"
+          icon="trending-up-outline"
+          selected={selectedGoal === "gain"}
+          onPress={() =>
+            setSelectedGoal("gain")
+          }
+        />
 
-subtitle="Burn fat and become healthier"
+        {/* CONTINUE */}
 
-icon="flame-outline"
+        <AuthButton
+          title="Continue"
+          onPress={handleContinue}
+        />
 
-selected={selected==="lose"}
-
-onPress={()=>setSelected("lose")}
-
-/>
-
-
-<SelectCard
-
-title="Maintain Weight"
-
-subtitle="Keep your current body"
-
-icon="fitness-outline"
-
-selected={selected==="maintain"}
-
-onPress={()=>setSelected("maintain")}
-
-/>
-
-
-<SelectCard
-
-title="Gain Weight"
-
-subtitle="Build muscle and increase weight"
-
-icon="barbell-outline"
-
-selected={selected==="gain"}
-
-onPress={()=>setSelected("gain")}
-
-/>
-
-
-
-<AuthButton
-title="Get Started"
-onPress={()=>{
-  router.push("/onboarding/activity");
-}}
-/>
-
-
-</View>
-
-</ScreenContainer>
-
-)
-
+      </View>
+    </ScreenContainer>
+  );
 }
 
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingTop: 50,
+  },
 
-const styles=StyleSheet.create({
-
-container:{
-flex:1,
-paddingTop:50
-},
-
-backBtn: {
-  width: 40,
-  height: 40,
-  borderRadius: 20,
-  backgroundColor: "#17171E",
-  borderWidth: 1,
-  borderColor: "#2A2A2A",
-  justifyContent: "center",
-  alignItems: "center",
-  marginBottom: 18,
-}
-
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#17171E",
+    borderWidth: 1,
+    borderColor: "#2A2A2A",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 18,
+  },
 });
