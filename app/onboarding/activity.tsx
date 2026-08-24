@@ -1,133 +1,169 @@
-import React,{useState} from "react";
-import {View,StyleSheet} from "react-native";
+import React, { useState } from "react";
+import {
+  View,
+  StyleSheet,
+  Pressable,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { router, useLocalSearchParams } from "expo-router";
 
 import ScreenContainer from "../../components/common/ScreenContainer";
 import AuthHeader from "../../components/auth/AuthHeader";
 import AuthButton from "../../components/auth/AuthButton";
 import StepIndicator from "../../components/auth/StepIndicator";
 import SelectCard from "../../components/auth/SelectCard";
-import{router} from "expo-router";
-import { Pressable } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
+type ActivityLevel =
+  | "sedentary"
+  | "light"
+  | "moderate"
+  | "hard";
 
+export default function ActivityScreen() {
+  const params = useLocalSearchParams<{
+    age?: string;
+    gender?: string;
+    height?: string;
+    weight?: string;
+    goal?: string;
+  }>();
 
-export default function ActivityScreen(){
+  const [selectedActivity, setSelectedActivity] =
+    useState<ActivityLevel | null>(null);
 
-const [selected,setSelected]=useState("");
+  const handleContinue = () => {
+    if (!selectedActivity) {
+      return;
+    }
 
+    router.push({
+      pathname: "/onboarding/commitment",
+      params: {
+        age: params.age ?? "",
+        gender: params.gender ?? "",
+        height: params.height ?? "",
+        weight: params.weight ?? "",
+        goal: params.goal ?? "",
+        activity: selectedActivity,
+      },
+    });
+  };
 
-return(
+  return (
+    <ScreenContainer>
+      <View style={styles.container}>
 
-<ScreenContainer>
+        {/* BACK BUTTON */}
 
-<View style={styles.container}>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.backBtn}
+        >
+          <Ionicons
+            name="arrow-back"
+            size={20}
+            color="#FFC107"
+          />
+        </Pressable>
 
-<Pressable onPress={() => router.back()} style={styles.backBtn}>
-  <Ionicons name="arrow-back" size={20} color="#FFC107" />
-</Pressable>
+        {/* STEP INDICATOR */}
 
+        <StepIndicator
+          current={4}
+          total={6}
+        />
 
-<StepIndicator current={4} total={6}/>
+        {/* HEADER */}
 
+        <AuthHeader
+          title="Activity"
+          highlight="Level"
+          subtitle="How active are you on a typical week?"
+        />
 
-<AuthHeader
+        {/* SEDENTARY */}
 
-title="Activity"
+        <SelectCard
+          title="Sedentary"
+          subtitle="Little or no exercise"
+          icon="bed-outline"
+          selected={
+            selectedActivity === "sedentary"
+          }
+          onPress={() =>
+            setSelectedActivity("sedentary")
+          }
+        />
 
-highlight="Level"
+        {/* LIGHT */}
 
-subtitle="How active are you?"
+        <SelectCard
+          title="Light Exercise"
+          subtitle="Exercise 1–3 days per week"
+          icon="walk-outline"
+          selected={
+            selectedActivity === "light"
+          }
+          onPress={() =>
+            setSelectedActivity("light")
+          }
+        />
 
-/>
+        {/* MODERATE */}
 
+        <SelectCard
+          title="Moderate Exercise"
+          subtitle="Exercise 3–5 days per week"
+          icon="fitness-outline"
+          selected={
+            selectedActivity === "moderate"
+          }
+          onPress={() =>
+            setSelectedActivity("moderate")
+          }
+        />
 
+        {/* HARD */}
 
-<SelectCard
+        <SelectCard
+          title="Hard Exercise"
+          subtitle="Intense exercise 6–7 days per week"
+          icon="barbell-outline"
+          selected={
+            selectedActivity === "hard"
+          }
+          onPress={() =>
+            setSelectedActivity("hard")
+          }
+        />
 
-title="No Exercise"
+        {/* CONTINUE */}
 
-subtitle="Little or no physical activity"
+        <AuthButton
+          title="Continue"
+          onPress={handleContinue}
+        />
 
-icon="bed-outline"
-
-selected={selected==="none"}
-
-onPress={()=>setSelected("none")}
-
-/>
-
-
-
-<SelectCard
-
-title="Light Exercise"
-
-subtitle="Walking, stretching, skipping"
-
-icon="walk-outline"
-
-selected={selected==="light"}
-
-onPress={()=>setSelected("light")}
-
-/>
-
-
-
-<SelectCard
-
-title="Hard Exercise"
-
-subtitle="Gym and intense workouts"
-
-icon="barbell-outline"
-
-selected={selected==="hard"}
-
-onPress={()=>setSelected("hard")}
-
-/>
-
-
-
-<AuthButton
-
-title="Continue"
-
-onPress={() =>
-router.push("/onboarding/commitment")
+      </View>
+    </ScreenContainer>
+  );
 }
 
-/>
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingTop: 50,
+  },
 
-
-</View>
-
-</ScreenContainer>
-
-)
-
-}
-
-
-const styles=StyleSheet.create({
-
-container:{
-flex:1,
-paddingTop:50
-},
-
-backBtn: {
-  width: 40,
-  height: 40,
-  borderRadius: 20,
-  backgroundColor: "#17171E",
-  borderWidth: 1,
-  borderColor: "#2A2A2A",
-  justifyContent: "center",
-  alignItems: "center",
-  marginBottom: 18,
-},
-
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#17171E",
+    borderWidth: 1,
+    borderColor: "#2A2A2A",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 18,
+  },
 });
