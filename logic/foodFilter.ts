@@ -8,6 +8,80 @@ import {
   FoodPreference,
 } from "../types/userProfile";
 
+/*
+=========================================================
+CHECK GOAL
+=========================================================
+*/
+
+function matchesGoal(
+  food: Food,
+  goal: UserGoal
+): boolean {
+  return food.suitableFor[goal];
+}
+
+/*
+=========================================================
+CHECK MEAL
+=========================================================
+*/
+
+function matchesMeal(
+  food: Food,
+  meal?: MealType
+): boolean {
+  if (!meal) {
+    return true;
+  }
+
+  return food.suitableMeals.includes(
+    meal
+  );
+}
+
+/*
+=========================================================
+CHECK FOOD PREFERENCE
+=========================================================
+*/
+
+function matchesPreference(
+  food: Food,
+  preference: FoodPreference
+): boolean {
+  /*
+   * LOCAL
+   *
+   * Only Ethiopian/local foods.
+   */
+  if (preference === "local") {
+    return food.cuisine === "local";
+  }
+
+  /*
+   * OTHER
+   *
+   * Other/international foods.
+   */
+  if (preference === "other") {
+    return food.cuisine === "other";
+  }
+
+  /*
+   * MIXED
+   *
+   * Both are allowed.
+   */
+  return true;
+}
+
+/*
+=========================================================
+MAIN FILTER
+=========================================================
+*/
+
 export function filterFoods(
   foods: Food[],
   preference: FoodPreference,
@@ -15,40 +89,23 @@ export function filterFoods(
   meal?: MealType
 ): Food[] {
   return foods.filter((food) => {
-    const matchesGoal =
-      food.suitableFor[goal];
-
-    if (!matchesGoal) {
+    if (!matchesGoal(food, goal)) {
       return false;
     }
 
-    const matchesMeal =
-      !meal ||
-      food.suitableMeals.includes(meal);
-
-    if (!matchesMeal) {
+    if (!matchesMeal(food, meal)) {
       return false;
     }
 
-    /*
-     * LOCAL ONLY
-     */
-    if (preference === "local") {
-      return food.cuisine === "local";
+    if (
+      !matchesPreference(
+        food,
+        preference
+      )
+    ) {
+      return false;
     }
 
-    /*
-     * OTHER ONLY
-     */
-    if (preference === "other") {
-      return food.cuisine === "other";
-    }
-
-    /*
-     * LOCAL + OTHER
-     *
-     * Both cuisines are allowed.
-     */
     return true;
   });
 }
