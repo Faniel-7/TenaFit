@@ -1,22 +1,22 @@
-import {
-  UserGoal,
-} from "../types/nutrition";
-
-import {
-  UserProfile,
-} from "../types/userProfile";
+import { UserGoal } from "../types/nutrition";
+import { UserProfile } from "../types/userProfile";
 
 export interface NutritionTargets {
   calories: number;
-
   protein: number;
-
   carbohydrates: number;
-
   fat: number;
-
   fiber: number;
+  bmr: number;
+  maintenanceCalories: number;
 }
+
+/*
+=========================================================
+BMR
+=========================================================
+Mifflin-St Jeor equation.
+*/
 
 function calculateBMR(
   profile: UserProfile
@@ -40,53 +40,111 @@ function calculateBMR(
   return base - 161;
 }
 
+/*
+=========================================================
+ACTIVITY MULTIPLIER
+=========================================================
+*/
+
 function getActivityMultiplier(
   profile: UserProfile
 ): number {
-  if (profile.activityLevel === "none") {
-    return 1.2;
-  }
+  switch (profile.activityLevel) {
+    case "sedentary":
+      return 1.2;
 
-  if (profile.activityLevel === "light") {
-    return 1.375;
-  }
+    case "light":
+      return 1.375;
 
-  return 1.55;
+    case "moderate":
+      return 1.55;
+
+    case "hard":
+      return 1.725;
+
+    default:
+      return 1.2;
+  }
 }
+
+/*
+=========================================================
+GOAL CALORIES
+=========================================================
+*/
 
 function calculateGoalCalories(
   maintenanceCalories: number,
   goal: UserGoal
 ): number {
-  if (goal === "weightLoss") {
-    return maintenanceCalories - 300;
-  }
+  switch (goal) {
+    case "weightLoss":
+      return maintenanceCalories - 300;
 
-  if (goal === "weightGain") {
-    return maintenanceCalories + 300;
-  }
+    case "weightGain":
+      return maintenanceCalories + 300;
 
-  return maintenanceCalories;
+    case "maintenance":
+    default:
+      return maintenanceCalories;
+  }
 }
+
+/*
+=========================================================
+PROTEIN
+=========================================================
+*/
 
 function calculateProtein(
   weightKg: number,
   goal: UserGoal
 ): number {
-  if (goal === "weightLoss") {
-    return weightKg * 1.6;
-  }
+  switch (goal) {
+    case "weightLoss":
+      return weightKg * 1.6;
 
-  if (goal === "weightGain") {
-    return weightKg * 1.6;
-  }
+    case "weightGain":
+      return weightKg * 1.6;
 
-  return weightKg * 1.4;
+    case "maintenance":
+    default:
+      return weightKg * 1.4;
+  }
 }
+
+function normalizeGoal(
+  goal: UserProfile["goal"]
+): UserGoal {
+  switch (goal) {
+    case "lose":
+      return "weightLoss";
+
+    case "gain":
+      return "weightGain";
+
+    case "maintain":
+      return "maintenance";
+
+    default:
+      return "maintenance";
+  }
+}
+
+/*
+=========================================================
+NUTRITION TARGETS
+=========================================================
+*/
 
 export function calculateNutritionTargets(
   profile: UserProfile
 ): NutritionTargets {
+  const goal =
+    normalizeGoal(
+      profile.goal
+    );
+
   const bmr =
     calculateBMR(profile);
 
@@ -96,30 +154,49 @@ export function calculateNutritionTargets(
   const maintenanceCalories =
     bmr * activityMultiplier;
 
-  const calories =
+  /*
+   * Apply the user's goal.
+   */
+  const calculatedCalories =
     calculateGoalCalories(
       maintenanceCalories,
-      profile.goal
+      goal
     );
 
+  /*
+   * Prevent unrealistic negative
+   * calorie targets.
+   */
+  const calories = Math.max(
+    Math.round(calculatedCalories),
+    1200
+  );
+
+  /*
+   * Protein.
+   */
   const protein =
     calculateProtein(
       profile.weightKg,
-      profile.goal
+      goal
     );
 
-  const proteinCalories =
-    protein * 4;
-
   /*
-   * Start with approximately 25% of
-   * calories from fat.
+   * Approximately 25% of calories
+   * come from fat.
    */
   const fatCalories =
     calories * 0.25;
 
   const fat =
     fatCalories / 9;
+
+  /*
+   * Remaining calories are assigned
+   * to carbohydrates.
+   */
+  const proteinCalories =
+    protein * 4;
 
   const remainingCalories =
     Math.max(
@@ -132,22 +209,38 @@ export function calculateNutritionTargets(
   const carbohydrates =
     remainingCalories / 4;
 
+  /*
+   * Fiber target:
+   * approximately 14g per 1000 kcal,
+   * with a minimum starting target of 25g.
+   */
   const fiber =
     Math.max(
       25,
-      calories / 1000 * 14
+      (calories / 1000) * 14
     );
 
   return {
-    calories: Math.round(calories),
+    calories,
 
-    protein: Math.round(protein),
+    protein:
+      Math.round(protein),
 
     carbohydrates:
       Math.round(carbohydrates),
 
-    fat: Math.round(fat),
+    fat:
+      Math.round(fat),
 
-    fiber: Math.round(fiber),
+    fiber:
+      Math.round(fiber),
+
+    bmr:
+      Math.round(bmr),
+
+    maintenanceCalories:
+      Math.round(
+        maintenanceCalories
+      ),
   };
 }
