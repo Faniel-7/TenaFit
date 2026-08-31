@@ -293,14 +293,18 @@ function MobileHome() {
             icon="add"
             title="Add Meal"
             subtitle="Log your food"
-            onPress={() => router.push("/")}
+            onPress={() => {
+  console.log("Add Meal navigation will be connected in the Tracking step.");
+}}
           />
 
           <QuickAction
             icon="scan-outline"
             title="Scan Food"
             subtitle="Scan barcode or QR"
-            onPress={() => router.push("/")}
+            onPress={() => {
+  console.log("Scan Food navigation will be connected in the Scanner step.");
+}}
           />
         </View>
 
@@ -331,8 +335,12 @@ function MobileHome() {
       </ScrollView>
 
       <BottomNav
-        onAddPress={() => router.push("/")}
-      />
+  onAddPress={() => {
+    console.log(
+      "Add Meal navigation will be connected in the Tracking step."
+    );
+  }}
+/>
     </View>
   );
 }
@@ -533,45 +541,69 @@ function Sidebar() {
 
       <View style={styles.sidebarNavigation}>
         <SidebarItem
-          icon="home"
-          label="Home"
-          active
-        />
+  icon="home"
+  label="Home"
+  active
+  onPress={() =>
+    router.push("/home")
+  }
+/>
 
-        <SidebarItem
-          icon="calendar-outline"
-          label="Plan"
-        />
+<SidebarItem
+  icon="calendar-outline"
+  label="Plan"
+  onPress={() =>
+    router.push("/dashboard/plan")
+  }
+/>
 
-        <SidebarItem
-          icon="bar-chart-outline"
-          label="Progress"
-        />
+<SidebarItem
+  icon="bar-chart-outline"
+  label="Progress"
+  onPress={() =>
+    router.push("/dashboard/progress")
+  }
+/>
 
-        <SidebarItem
-          icon="restaurant-outline"
-          label="Meals"
-        />
+<SidebarItem
+  icon="restaurant-outline"
+  label="Meals"
+  onPress={() =>
+    router.push("/dashboard/meals")
+  }
+/>
 
-        <SidebarItem
-          icon="barbell-outline"
-          label="Workouts"
-        />
+<SidebarItem
+  icon="barbell-outline"
+  label="Workouts"
+  onPress={() =>
+    router.push("/dashboard/workouts")
+  }
+/>
 
-        <SidebarItem
-          icon="water-outline"
-          label="Water"
-        />
+<SidebarItem
+  icon="water-outline"
+  label="Water"
+  onPress={() =>
+    router.push("/dashboard/water")
+  }
+/>
 
-        <SidebarItem
-          icon="document-text-outline"
-          label="Reports"
-        />
+<SidebarItem
+  icon="document-text-outline"
+  label="Reports"
+  onPress={() =>
+    router.push("/dashboard/reports")
+  }
+/>
 
-        <SidebarItem
-          icon="settings-outline"
-          label="Settings"
-        />
+<SidebarItem
+  icon="settings-outline"
+  label="Settings"
+  onPress={() =>
+    router.push("/dashboard/settings")
+  }
+/>
       </View>
 
       <View style={styles.premiumCard}>
@@ -646,16 +678,20 @@ function SidebarItem({
   icon,
   label,
   active = false,
+  onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   active?: boolean;
+  onPress?: () => void;
 }) {
   return (
     <Pressable
+      onPress={onPress}
       style={[
         styles.sidebarItem,
-        active && styles.sidebarItemActive,
+        active &&
+          styles.sidebarItemActive,
       ]}
     >
       <Ionicons
