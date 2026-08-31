@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,15 +6,21 @@ import {
   Pressable,
   Platform,
   ActivityIndicator,
+  useWindowDimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
+import {
+  router,
+  useLocalSearchParams,
+} from "expo-router";
 
 import ScreenContainer from "../../components/common/ScreenContainer";
 import AuthButton from "../../components/auth/AuthButton";
 import StepIndicator from "../../components/auth/StepIndicator";
 import ReviewCard from "../../components/auth/ReviewCard";
+
 import { saveUserProfile } from "../../storage/profileStorage";
+
 import {
   UserProfile,
   Gender,
@@ -25,42 +31,93 @@ import {
 
 const isWeb = Platform.OS === "web";
 
-export default function ReviewScreen() {
-  const params = useLocalSearchParams();
+type ReviewParams = {
+  fullName?: string | string[];
+  username?: string | string[];
+  email?: string | string[];
 
-  const [isSaving, setIsSaving] = useState(false);
+  age?: string | string[];
+  gender?: string | string[];
+
+  height?: string | string[];
+  weight?: string | string[];
+
+  goal?: string | string[];
+
+  activity?: string | string[];
+
+  commitment?: string | string[];
+
+  foodPreference?: string | string[];
+};
+
+export default function ReviewScreen() {
+  const params =
+    useLocalSearchParams<ReviewParams>();
+
+  const { width } =
+    useWindowDimensions();
+
+  /*
+  =========================================================
+  WEB MOBILE DETECTION
+  =========================================================
+
+  Mobile means the web viewport.
+
+  Example:
+  412 × 914 → mobile layout
+
+  Desktop remains untouched.
+  */
+
+  const isMobileWeb =
+    Platform.OS === "web" &&
+    width <= 600;
+
+  const [isSaving, setIsSaving] =
+    useState(false);
 
   /*
   =========================================================
   ONBOARDING DATA
   =========================================================
-
-  The onboarding screens pass their values through Expo Router
-  parameters.
-
-  We keep the values as strings here and convert numerical
-  values when creating the final UserProfile.
   */
 
-  const fullName = getParam(params.fullName);
-  const username = getParam(params.username);
-  const email = getParam(params.email);
+  const fullName =
+    getParam(params.fullName);
 
-  const age = getParam(params.age);
-  const gender = getParam(params.gender);
+  const username =
+    getParam(params.username);
 
-  const height = getParam(params.height);
-  const weight = getParam(params.weight);
+  const email =
+    getParam(params.email);
 
-  const goal = getParam(params.goal);
-  const activityLevel = getParam(params.activityLevel);
+  const age =
+    getParam(params.age);
 
-  const daysPerWeek = getParam(params.daysPerWeek);
-  const minutesPerDay = getParam(params.minutesPerDay);
+  const gender =
+    getParam(params.gender);
 
-  const foodPreference = getParam(
-    params.foodPreference
-  );
+  const height =
+    getParam(params.height);
+
+  const weight =
+    getParam(params.weight);
+
+  const goal =
+    getParam(params.goal);
+
+  const activity =
+    getParam(params.activity);
+
+  const commitment =
+    getParam(params.commitment);
+
+  const foodPreference =
+    getParam(
+      params.foodPreference
+    );
 
   /*
   =========================================================
@@ -71,27 +128,120 @@ export default function ReviewScreen() {
   const displayGender =
     formatGender(gender);
 
+  const displayAge =
+    age
+      ? `${age} years`
+      : "Not provided";
+
   const displayGoal =
     formatGoal(goal);
 
+  const displayHeight =
+    height
+      ? `${height} cm`
+      : "Not provided";
+
+  const displayWeight =
+    weight
+      ? `${weight} kg`
+      : "Not provided";
+
   const displayActivity =
-    formatActivity(activityLevel);
-
-  const displayFoodPreference =
-    formatFoodPreference(foodPreference);
-
-  const displayHeight = height
-    ? `${height} cm`
-    : "Not provided";
-
-  const displayWeight = weight
-    ? `${weight} kg`
-    : "Not provided";
+    formatActivity(activity);
 
   const displayCommitment =
-    daysPerWeek && minutesPerDay
-      ? `${daysPerWeek} Days • ${minutesPerDay} Min`
-      : "Not provided";
+    formatCommitment(
+      commitment
+    );
+
+  const displayFoodPreference =
+    formatFoodPreference(
+      foodPreference
+    );
+
+  /*
+  =========================================================
+  PRESERVE ALL ONBOARDING DATA
+  =========================================================
+  */
+
+  const editParams = {
+    fullName,
+    username,
+    email,
+
+    age,
+    gender,
+
+    height,
+    weight,
+
+    goal,
+
+    activity,
+
+    commitment,
+
+    foodPreference,
+  };
+
+  /*
+  =========================================================
+  EDIT HANDLERS
+  =========================================================
+  */
+
+  const editPersonalInfo =
+    () => {
+      router.push({
+        pathname:
+          "/onboarding/personal-info",
+        params: editParams,
+      });
+    };
+
+  const editPhysicalInfo =
+    () => {
+      router.push({
+        pathname:
+          "/onboarding/physical-info",
+        params: editParams,
+      });
+    };
+
+  const editGoal = () => {
+    router.push({
+      pathname:
+        "/onboarding/goal",
+      params: editParams,
+    });
+  };
+const editActivity =
+    () => {
+      router.push({
+        pathname:
+          "/onboarding/activity",
+        params: editParams,
+      });
+    };
+
+  const editCommitment =
+    () => {
+      router.push({
+        pathname:
+          "/onboarding/commitment",
+        params: editParams,
+      });
+    };
+
+  const editFoodPreference =
+    () => {
+      router.push({
+        pathname:
+          "/onboarding/food-preference",
+        params: editParams,
+      });
+    };
 
   /*
   =========================================================
@@ -99,53 +249,127 @@ export default function ReviewScreen() {
   =========================================================
   */
 
-  const handleFinishSetup = async () => {
-    if (isSaving) {
-      return;
+  const handleFinishSetup =
+    async () => {
+      if (isSaving) {
+        return;
+      }
+
+      if (
+        !age ||
+        !gender ||
+        !height ||
+        !weight ||
+        !goal ||
+        !activity ||
+        !commitment ||
+        !foodPreference
+      ) {
+        console.warn(
+          "Incomplete onboarding data:",
+          {
+            age,
+            gender,
+            height,
+            weight,
+            goal,
+            activity,
+            commitment,
+            foodPreference,
+          }
+        );
+
+        return;
+      }
+
+      try {
+        setIsSaving(true);
+
+        const profile: UserProfile = {
+          age: Number(age),
+
+          gender:
+            normalizeGender(
+              gender
+            ),
+
+          heightCm:
+            Number(height),
+
+          weightKg:
+            Number(weight),
+
+          goal:
+            normalizeGoal(
+              goal
+            ),
+
+          activityLevel:
+            normalizeActivityLevel(
+              activity
+            ),
+
+          daysPerWeek:
+            getCommitmentDays(
+              commitment
+            ),
+
+          minutesPerDay: 0,
+
+          foodPreference:
+            normalizeFoodPreference(
+              foodPreference
+            ),
+        };
+
+        await saveUserProfile(
+          profile
+        );
+
+        router.replace(
+          "/home"
+        );
+      } catch (error) {
+        console.error(
+          "Failed to finish setup:",
+          error
+        );
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+  /*
+  =========================================================
+  REVIEW CARD HELPER
+  =========================================================
+
+  IMPORTANT:
+
+  Desktop:
+  The ReviewCard is rendered directly.
+  Therefore its desktop appearance is unchanged.
+
+  Mobile:
+  The card gets a wider two-column wrapper.
+  */
+
+  const renderCard = (
+    card: React.ReactNode
+  ) => {
+    if (!isMobileWeb) {
+      return card;
     }
 
-    try {
-      setIsSaving(true);
-
-      const profile: UserProfile = {
-        age: Number(age),
-        gender: normalizeGender(gender),
-
-        heightCm: Number(height),
-        weightKg: Number(weight),
-
-        goal: normalizeGoal(goal),
-        activityLevel:
-          normalizeActivityLevel(
-            activityLevel
-          ),
-
-        daysPerWeek: Number(daysPerWeek),
-        minutesPerDay: Number(minutesPerDay),
-
-        foodPreference:
-          normalizeFoodPreference(
-            foodPreference
-          ),
-      };
-
-      await saveUserProfile(profile);
-
-      /*
-      Replace the onboarding stack with Home
-      so the user doesn't return to onboarding
-      when pressing the back button.
-      */
-
-      router.replace("/home");
-    } catch (error) {
-      console.error(
-        "Failed to finish setup:",
-        error
-      );
-    } finally {
-      setIsSaving(false);
-    }
+    return (
+      <View
+        style={
+          styles.mobileCardWrapper
+        }
+      >
+        {card}
+      </View>
+    );
   };
 
   return (
@@ -153,12 +377,24 @@ export default function ReviewScreen() {
       scrollable={isWeb}
       wide={isWeb}
     >
-      <View style={styles.container}>
-        {/* TOP ROW */}
+      <View
+        style={[
+          styles.container,
+          isMobileWeb &&
+            styles.mobileContainer,
+        ]}
+      >
+        {/* =================================================
+            TOP ROW
+        ================================================= */}
 
-        <View style={styles.topRow}>
+        <View
+          style={styles.topRow}
+        >
           <Pressable
-            onPress={() => router.back()}
+            onPress={() =>
+              router.back()
+            }
             style={styles.backBtn}
           >
             <Ionicons
@@ -167,122 +403,196 @@ export default function ReviewScreen() {
               color="#FFC107"
             />
           </Pressable>
-<View style={styles.summaryBadge}>
+
+          <View
+            style={
+              styles.summaryBadge
+            }
+          >
             <Ionicons
               name="checkmark-circle"
               size={16}
               color="#FFC107"
             />
 
-            <Text style={styles.summaryText}>
+            <Text
+              style={
+                styles.summaryText
+              }
+            >
               Setup summary
             </Text>
           </View>
         </View>
 
-        {/* STEP INDICATOR */}
-
-        <StepIndicator
+        {/* =================================================
+            STEP INDICATOR
+        ================================================= */}
+<StepIndicator
           current={6}
           total={6}
         />
 
-        {/* TITLE */}
+        {/* =================================================
+            TITLE
+        ================================================= */}
 
-        <Text style={styles.title}>
+        <Text
+          style={styles.title}
+        >
           Review your plan
         </Text>
 
-        <Text style={styles.subtitle}>
-          Check everything before finishing setup.
+        <Text
+          style={styles.subtitle}
+        >
+          Check everything before
+          finishing setup.
         </Text>
 
-        {/* REVIEW GRID */}
+        {/* =================================================
+            REVIEW GRID
+        ================================================= */}
 
-        <View style={styles.grid}>
-          <ReviewCard
-            icon="person-outline"
-            label="Gender"
-            value={displayGender}
-            onEdit={() =>
-              router.push(
-                "/onboarding/personal-info"
-              )
-            }
-          />
+        <View
+          style={[
+            styles.grid,
+            isMobileWeb &&
+              styles.mobileGrid,
+          ]}
+        >
+          {/* GENDER */}
 
-          <ReviewCard
-            icon="flag-outline"
-            label="Goal"
-            value={displayGoal}
-            onEdit={() =>
-              router.push(
-                "/onboarding/goal"
-              )
-            }
-          />
+          {renderCard(
+            <ReviewCard
+              icon="person-outline"
+              label="Gender"
+              value={
+                displayGender
+              }
+              onEdit={
+                editPersonalInfo
+              }
+            />
+          )}
 
-          <ReviewCard
-            icon="resize-outline"
-            label="Height"
-            value={displayHeight}
-            onEdit={() =>
-              router.push(
-                "/onboarding/physical-info"
-              )
-            }
-          />
+          {/* AGE */}
 
-          <ReviewCard
-            icon="barbell-outline"
-            label="Weight"
-            value={displayWeight}
-            onEdit={() =>
-              router.push(
-                "/onboarding/physical-info"
-              )
-            }
-          />
+          {renderCard(
+            <ReviewCard
+              icon="calendar-outline"
+              label="Age"
+              value={
+                displayAge
+              }
+              onEdit={
+                editPersonalInfo
+              }
+            />
+          )}
 
-          <ReviewCard
-            icon="fitness-outline"
-            label="Activity"
-            value={displayActivity}
-            onEdit={() =>
-              router.push(
-                "/onboarding/activity"
-              )
-            }
-          />
+          {/* GOAL */}
 
-          <ReviewCard
-            icon="calendar-outline"
-            label="Commitment"
-            value={displayCommitment}
-            onEdit={() =>
-              router.push(
-                "/onboarding/commitment"
-              )
-            }
-          />
+          {renderCard(
+            <ReviewCard
+              icon="flag-outline"
+              label="Goal"
+              value={
+                displayGoal
+              }
+              onEdit={
+                editGoal
+              }
+            />
+          )}
+
+          {/* HEIGHT */}
+
+          {renderCard(
+            <ReviewCard
+              icon="resize-outline"
+              label="Height"
+              value={
+                displayHeight
+              }
+              onEdit={
+                editPhysicalInfo
+              }
+            />
+          )}
+
+          {/* WEIGHT */}
+
+          {renderCard(
+            <ReviewCard
+              icon="barbell-outline"
+              label="Weight"
+              value={
+                displayWeight
+              }
+              onEdit={
+                editPhysicalInfo
+              }
+            />
+          )}
+
+          {/* ACTIVITY */}
+
+          {renderCard(
+            <ReviewCard
+              icon="fitness-outline"
+              label="Activity"
+              value={
+                displayActivity
+              }
+              onEdit={
+                editActivity
+              }
+            />
+          )}
+
+          {/* COMMITMENT */}
+
+          {renderCard(
+            <ReviewCard
+              icon="calendar-outline"
+              label="Commitment"
+              value={
+                displayCommitment
+              }
+              onEdit={
+                editCommitment
+              }
+            />
+          )}
 
           {/* FOOD PREFERENCE */}
 
-          <ReviewCard
-            icon="restaurant-outline"
-            label="Food Preference"
-            value={displayFoodPreference}
-            onEdit={() =>
-              router.push(
-                "/onboarding/food-preference"
-              )
-            }
-          />
+          {renderCard(
+            <ReviewCard
+              icon="restaurant-outline"
+              label="Food Preference"
+              value={
+                displayFoodPreference
+              }
+              onEdit={
+                editFoodPreference
+              }
+            />
+          )}
         </View>
 
-        {/* FINISH BUTTON */}
+        {/* =================================================
+            FINISH BUTTON
+        ================================================= */}
 
-        <View style={styles.buttonWrap}>
+        <View
+          style={[
+            styles.buttonWrap,
+            isMobileWeb &&
+              styles.mobileButtonWrap,
+          ]}
+        >
           <AuthButton
             title={
               isSaving
@@ -295,12 +605,13 @@ export default function ReviewScreen() {
               }
             }}
           />
-
-          {isSaving && (
+{isSaving && (
             <ActivityIndicator
               size="small"
               color="#FFC107"
-              style={styles.loading}
+              style={
+                styles.loading
+              }
             />
           )}
         </View>
@@ -310,9 +621,9 @@ export default function ReviewScreen() {
 }
 
 /*
-=========================================================
-PARAMETER HELPERS
-=========================================================
+===========================================================
+PARAMETER HELPER
+===========================================================
 */
 
 function getParam(
@@ -321,7 +632,9 @@ function getParam(
     | string[]
     | undefined
 ): string {
-  if (Array.isArray(value)) {
+  if (
+    Array.isArray(value)
+  ) {
     return value[0] ?? "";
   }
 
@@ -329,30 +642,40 @@ function getParam(
 }
 
 /*
-=========================================================
+===========================================================
 DISPLAY FORMATTERS
-=========================================================
+===========================================================
 */
 
 function formatGender(
   value: string
 ): string {
-  switch (value.toLowerCase()) {
+  switch (
+    value.toLowerCase()
+  ) {
     case "male":
       return "Male";
 
     case "female":
       return "Female";
 
+    case "other":
+      return "Prefer not to say";
+
     default:
-      return value || "Not provided";
+      return (
+        value ||
+        "Not provided"
+      );
   }
 }
 
 function formatGoal(
   value: string
 ): string {
-  switch (value.toLowerCase()) {
+  switch (
+    value.toLowerCase()
+  ) {
     case "lose":
     case "lose_weight":
     case "lose-weight":
@@ -362,20 +685,26 @@ function formatGoal(
     case "maintain_weight":
     case "maintain-weight":
       return "Maintain Weight";
-case "gain":
+
+    case "gain":
     case "gain_weight":
     case "gain-weight":
       return "Gain Weight";
 
     default:
-      return value || "Not provided";
+      return (
+        value ||
+        "Not provided"
+      );
   }
 }
 
 function formatActivity(
   value: string
 ): string {
-  switch (value.toLowerCase()) {
+  switch (
+    value.toLowerCase()
+  ) {
     case "sedentary":
     case "no_exercise":
     case "no-exercise":
@@ -391,24 +720,56 @@ function formatActivity(
     case "moderate-exercise":
       return "Moderate Exercise";
 
+    case "hard":
     case "heavy":
     case "heavy_exercise":
     case "heavy-exercise":
-      return "Heavy Exercise";
+      return "Hard Exercise";
 
     case "very_active":
     case "very-active":
       return "Very Active";
 
     default:
-      return value || "Not provided";
+      return (
+        value ||
+        "Not provided"
+      );
+  }
+}
+
+function formatCommitment(
+  value: string
+): string {
+  switch (
+    value.toLowerCase()
+  ) {
+    case "1-2":
+      return "1–2 Days";
+
+    case "3-4":
+      return "3–4 Days";
+
+    case "5-6":
+      return "5–6 Days";
+
+    case "7":
+      return "7 Days";
+
+    default:
+      return (
+        value ||
+        "Not provided"
+      );
   }
 }
 
 function formatFoodPreference(
   value: string
 ): string {
-  switch (value.toLowerCase()) {
+  switch (
+    value.toLowerCase()
+  ) {
     case "local":
       return "Local Foods";
 
@@ -422,22 +783,30 @@ function formatFoodPreference(
       return "Local + Other";
 
     default:
-      return value || "Not provided";
+      return (
+        value ||
+        "Not provided"
+      );
   }
 }
 
 /*
-=========================================================
+===========================================================
 NORMALIZERS
-=========================================================
+===========================================================
 */
 
 function normalizeGender(
   value: string
 ): Gender {
-  return value.toLowerCase() === "female"
-    ? "female"
-    : "male";
+  if (
+    value.toLowerCase() ===
+    "female"
+  ) {
+    return "female";
+  }
+
+  return "male";
 }
 
 function normalizeGoal(
@@ -448,16 +817,21 @@ function normalizeGoal(
 
   if (
     normalized === "lose" ||
-    normalized === "lose_weight" ||
-    normalized === "lose-weight"
+    normalized ===
+      "lose_weight" ||
+    normalized ===
+      "lose-weight"
   ) {
     return "lose";
   }
 
   if (
-    normalized === "maintain" ||
-    normalized === "maintain_weight" ||
-    normalized === "maintain-weight"
+    normalized ===
+      "maintain" ||
+    normalized ===
+      "maintain_weight" ||
+    normalized ===
+      "maintain-weight"
   ) {
     return "maintain";
   }
@@ -472,39 +846,53 @@ function normalizeActivityLevel(
     value.toLowerCase();
 
   if (
-    normalized === "sedentary" ||
-    normalized === "no_exercise" ||
-    normalized === "no-exercise"
+    normalized ===
+      "sedentary" ||
+    normalized ===
+      "no_exercise" ||
+    normalized ===
+      "no-exercise"
   ) {
     return "sedentary";
   }
-
-  if (
-    normalized === "light" ||
-    normalized === "light_exercise" ||
-    normalized === "light-exercise"
+if (
+    normalized ===
+      "light" ||
+    normalized ===
+      "light_exercise" ||
+    normalized ===
+      "light-exercise"
   ) {
     return "light";
   }
 
   if (
+    normalized ===
+      "moderate" ||
+    normalized ===
+      "moderate_exercise" ||
+    normalized ===
+      "moderate-exercise"
+  ) {
+    return "moderate";
+  }
+
+  if (
+    normalized === "hard" ||
     normalized === "heavy" ||
-    normalized === "heavy_exercise" ||
-    normalized === "heavy-exercise"
+    normalized ===
+      "heavy_exercise" ||
+    normalized ===
+      "heavy-exercise"
   ) {
     return "hard";
   }
 
   if (
-    normalized === "very_active" ||
-    normalized === "very-active"
-  ) {
-    return "hard";
-  }
-
-  if (
-    normalized === "extremely_active" ||
-    normalized === "extremely-active"
+    normalized ===
+      "very_active" ||
+    normalized ===
+      "very-active"
   ) {
     return "hard";
   }
@@ -518,97 +906,238 @@ function normalizeFoodPreference(
   const normalized =
     value.toLowerCase();
 
-  if (normalized === "local") {
+  if (
+    normalized === "local"
+  ) {
     return "local";
   }
 
-  if (normalized === "other") {
+  if (
+    normalized === "other"
+  ) {
     return "other";
   }
 
-  return "local_plus_other" as FoodPreference;
+  return "mixed";
 }
 
 /*
-=========================================================
-STYLES
-=========================================================
+===========================================================
+COMMITMENT → DAYS
+===========================================================
 */
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: isWeb ? 12 : 24,
-  },
+function getCommitmentDays(
+  value: string
+): number {
+  switch (
+    value.toLowerCase()
+  ) {
+    case "1-2":
+      return 1;
 
-  topRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-  },
+    case "3-4":
+      return 3;
 
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#17171E",
-    borderWidth: 1,
-    borderColor: "#2A2A2A",
-    justifyContent: "center",
-    alignItems: "center",
-  },
+    case "5-6":
+      return 5;
 
-  summaryBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#17171E",
-    borderWidth: 1,
-    borderColor: "#2A2A2A",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    gap: 6,
-  },
+    case "7":
+      return 7;
 
-  summaryText: {
-    color: "#FFC107",
-    fontWeight: "800",
-    fontSize: 12,
-  },
+    default:
+      return 0;
+  }
+}
 
-  title: {
-    color: "#FFFFFF",
-    fontSize: isWeb ? 28 : 24,
-    fontWeight: "900",
-    letterSpacing: -0.5,
-    marginTop: 2,
-  },
+/*
+===========================================================
+STYLES
+===========================================================
+*/
 
-  subtitle: {
-    color: "#9CA3AF",
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 4,
-    marginBottom: 14,
-  },
-grid: {
-    width: "100%",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    rowGap: 18,
-    columnGap: 12,
-    marginBottom: 16,
-  },
+const styles =
+  StyleSheet.create({
+    /*
+    -------------------------------------------------------
+    MAIN CONTAINER
+    -------------------------------------------------------
+    */
 
-  buttonWrap: {
-    width: isWeb ? 320 : "100%",
-    alignSelf: "center",
-    marginTop: 10,
-  },
+    container: {
+      flex: 1,
+      paddingTop:
+        isWeb ? 12 : 24,
+    },
 
-  loading: {
-    marginTop: 10,
-  },
-});
+    /*
+    ONLY MOBILE WEB
+    */
+
+    mobileContainer: {
+      paddingTop: 10,
+    },
+
+    /*
+    -------------------------------------------------------
+    TOP ROW
+    -------------------------------------------------------
+    */
+
+    topRow: {
+      flexDirection:
+        "row",
+      justifyContent:
+        "space-between",
+      alignItems:
+        "center",
+      marginBottom: 10,
+    },
+
+    backBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor:
+        "#17171E",
+      borderWidth: 1,
+      borderColor:
+        "#2A2A2A",
+      justifyContent:
+        "center",
+      alignItems:
+        "center",
+    },
+
+    summaryBadge: {
+      flexDirection:
+        "row",
+      alignItems:
+        "center",
+      backgroundColor:
+        "#17171E",
+      borderWidth: 1,
+      borderColor:
+        "#2A2A2A",
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 999,
+      gap: 6,
+    },
+
+    summaryText: {
+      color: "#FFC107",
+      fontWeight:
+        "800",
+      fontSize: 12,
+    },
+
+    /*
+    -------------------------------------------------------
+    TITLE
+    -------------------------------------------------------
+    */
+
+    title: {
+      color: "#FFFFFF",
+      fontSize:
+        isWeb ? 28 : 24,
+      fontWeight:
+        "900",
+      letterSpacing:
+        -0.5,
+      marginTop: 2,
+    },
+
+    subtitle: {
+      color: "#9CA3AF",
+      fontSize: 14,
+      lineHeight: 20,
+      marginTop: 4,
+      marginBottom: 14,
+    },
+
+    /*
+    -------------------------------------------------------
+    DESKTOP GRID
+    -------------------------------------------------------
+
+    THIS IS THE ORIGINAL DESKTOP STRUCTURE.
+
+    We do not change its card widths.
+    */
+
+    grid: {
+      width: "100%",
+      flexDirection:
+        "row",
+      flexWrap:
+        "wrap",
+      justifyContent:
+        "space-between",
+      rowGap: 18,
+      columnGap: 12,
+      marginBottom: 16,
+    },
+
+    /*
+    -------------------------------------------------------
+    MOBILE GRID
+    -------------------------------------------------------
+
+    Only applied to the web-mobile viewport.
+
+    The cards remain two columns.
+    */
+
+    mobileGrid: {
+      width: "100%",
+      justifyContent:
+        "space-between",
+      columnGap: 0,
+      rowGap: 14,
+    },
+/*
+    -------------------------------------------------------
+    MOBILE CARD WIDTH
+    -------------------------------------------------------
+
+    This wrapper exists ONLY on mobile.
+
+    At 412px this gives each card almost half
+    of the available width.
+    */
+
+    mobileCardWrapper: {
+      width: "48.5%",
+      minWidth: 0,
+    },
+
+    /*
+    -------------------------------------------------------
+    DESKTOP BUTTON
+    -------------------------------------------------------
+    */
+
+    buttonWrap: {
+      width: 320,
+      alignSelf:
+        "center",
+      marginTop: 10,
+    },
+
+    /*
+    -------------------------------------------------------
+    MOBILE BUTTON
+    -------------------------------------------------------
+    */
+
+    mobileButtonWrap: {
+      width: "100%",
+      marginTop: 6,
+    },
+
+    loading: {
+      marginTop: 10,
+    },
+  });
