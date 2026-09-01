@@ -28,7 +28,9 @@ export default function DashboardSectionScreen() {
         <Pressable
           style={styles.backButton}
           onPress={() =>
-            router.back()
+            router.replace(
+              "/home"
+            )
           }
         >
           <Ionicons
@@ -41,7 +43,7 @@ export default function DashboardSectionScreen() {
         <Text
           style={styles.headerTitle}
         >
-          TenaFit
+          {title}
         </Text>
       </View>
 
@@ -71,21 +73,6 @@ export default function DashboardSectionScreen() {
           to navigation and will be
           built in its roadmap step.
         </Text>
-
-        <Pressable
-          style={styles.homeButton}
-          onPress={() =>
-            router.replace(
-              "/home"
-            )
-          }
-        >
-          <Text
-            style={styles.homeButtonText}
-          >
-            Back to Home
-          </Text>
-        </Pressable>
       </View>
     </View>
   );
@@ -144,11 +131,9 @@ const styles =
 
     header: {
       height: 75,
-      flexDirection:
-        "row",
-      alignItems:
-        "center",
-      paddingHorizontal: 20,
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 25,
       borderBottomWidth: 1,
       borderBottomColor:
         "#252A34",
@@ -163,8 +148,7 @@ const styles =
       borderWidth: 1,
       borderColor:
         "#2A2A2A",
-      alignItems:
-        "center",
+      alignItems: "center",
       justifyContent:
         "center",
     },
@@ -178,10 +162,8 @@ const styles =
 
     content: {
       flex: 1,
-      alignItems:
-        "center",
-      justifyContent:
-        "center",
+      alignItems: "center",
+      justifyContent: "center",
       paddingHorizontal: 30,
     },
 
@@ -194,10 +176,8 @@ const styles =
       borderWidth: 1,
       borderColor:
         "#3A3422",
-      alignItems:
-        "center",
-      justifyContent:
-        "center",
+      alignItems: "center",
+      justifyContent: "center",
       marginBottom: 20,
     },
 
@@ -215,19 +195,5 @@ const styles =
       textAlign: "center",
       marginTop: 10,
       maxWidth: 420,
-    },
-
-    homeButton: {
-      marginTop: 25,
-      backgroundColor:
-        "#FFC107",
-      paddingHorizontal: 25,
-      paddingVertical: 13,
-      borderRadius: 12,
-    },
-homeButtonText: {
-      color: "#111111",
-      fontSize: 14,
-      fontWeight: "900",
     },
   });
