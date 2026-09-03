@@ -44,9 +44,13 @@ type ReviewParams = {
 
   goal?: string | string[];
 
-  activity?: string | string[];
+  activityLevel?: string | string[];
 
-  commitment?: string | string[];
+  daysPerWeek?: string | string[];
+
+  minutesPerDay?: string | string[];
+
+
 
   foodPreference?: string | string[];
 };
@@ -108,11 +112,15 @@ export default function ReviewScreen() {
   const goal =
     getParam(params.goal);
 
-  const activity =
-    getParam(params.activity);
+  const activityLevel =
+    getParam(params.activityLevel);
 
-  const commitment =
-    getParam(params.commitment);
+  const daysPerWeek =
+    getParam(params.daysPerWeek);
+
+  const minutesPerDay =
+    getParam(params.minutesPerDay);
+
 
   const foodPreference =
     getParam(
@@ -147,11 +155,12 @@ export default function ReviewScreen() {
       : "Not provided";
 
   const displayActivity =
-    formatActivity(activity);
+    formatActivity(activityLevel);
 
   const displayCommitment =
     formatCommitment(
-      commitment
+      daysPerWeek, 
+      minutesPerDay
     );
 
   const displayFoodPreference =
@@ -178,9 +187,10 @@ export default function ReviewScreen() {
 
     goal,
 
-    activity,
+    activityLevel,
 
-    commitment,
+    daysPerWeek,
+    minutesPerDay,
 
     foodPreference,
   };
@@ -261,8 +271,9 @@ const editActivity =
         !height ||
         !weight ||
         !goal ||
-        !activity ||
-        !commitment ||
+        !activityLevel ||
+        !daysPerWeek ||
+        !minutesPerDay ||
         !foodPreference
       ) {
         console.warn(
@@ -273,8 +284,8 @@ const editActivity =
             height,
             weight,
             goal,
-            activity,
-            commitment,
+            activityLevel,
+            daysPerWeek,
             foodPreference,
           }
         );
@@ -306,15 +317,14 @@ const editActivity =
 
           activityLevel:
             normalizeActivityLevel(
-              activity
+              activityLevel
             ),
 
           daysPerWeek:
-            getCommitmentDays(
-              commitment
-            ),
+            Number(daysPerWeek),
 
-          minutesPerDay: 0,
+          minutesPerDay:
+            Number(minutesPerDay),
 
           foodPreference:
             normalizeFoodPreference(
@@ -739,29 +749,29 @@ function formatActivity(
 }
 
 function formatCommitment(
-  value: string
+  days: string,
+  minutes: string
 ): string {
-  switch (
-    value.toLowerCase()
+  const daysNumber =
+    Number(days);
+
+  const minutesNumber =
+    Number(minutes);
+
+  if (
+    !Number.isFinite(daysNumber) ||
+    !Number.isFinite(minutesNumber) ||
+    daysNumber <= 0 ||
+    minutesNumber <= 0
   ) {
-    case "1-2":
-      return "1–2 Days";
-
-    case "3-4":
-      return "3–4 Days";
-
-    case "5-6":
-      return "5–6 Days";
-
-    case "7":
-      return "7 Days";
-
-    default:
-      return (
-        value ||
-        "Not provided"
-      );
+    return "Not provided";
   }
+
+  return `${daysNumber} ${
+    daysNumber === 1
+      ? "day"
+      : "days"
+  } / ${minutesNumber} min per day`;
 }
 
 function formatFoodPreference(
@@ -921,34 +931,6 @@ function normalizeFoodPreference(
   return "mixed";
 }
 
-/*
-===========================================================
-COMMITMENT → DAYS
-===========================================================
-*/
-
-function getCommitmentDays(
-  value: string
-): number {
-  switch (
-    value.toLowerCase()
-  ) {
-    case "1-2":
-      return 1;
-
-    case "3-4":
-      return 3;
-
-    case "5-6":
-      return 5;
-
-    case "7":
-      return 7;
-
-    default:
-      return 0;
-  }
-}
 
 /*
 ===========================================================
