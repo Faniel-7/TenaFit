@@ -5,7 +5,10 @@ import {
   Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
+import {
+  router,
+  useLocalSearchParams,
+} from "expo-router";
 
 import ScreenContainer from "../../components/common/ScreenContainer";
 import AuthHeader from "../../components/auth/AuthHeader";
@@ -20,16 +23,27 @@ type ActivityLevel =
   | "hard";
 
 export default function ActivityScreen() {
-  const params = useLocalSearchParams<{
-    age?: string;
-    gender?: string;
-    height?: string;
-    weight?: string;
-    goal?: string;
-  }>();
+  const params =
+    useLocalSearchParams<{
+      age?: string;
+      gender?: string;
+      height?: string;
+      weight?: string;
+      goal?: string;
+      activityLevel?: string;
+      daysPerWeek?: string;
+      minutesPerDay?: string;
+      foodPreference?: string;
+    }>();
 
   const [selectedActivity, setSelectedActivity] =
-    useState<ActivityLevel | null>(null);
+    useState<ActivityLevel | null>(
+      isValidActivity(
+        params.activityLevel
+      )
+        ? params.activityLevel
+        : null
+    );
 
   const handleContinue = () => {
     if (!selectedActivity) {
@@ -37,14 +51,27 @@ export default function ActivityScreen() {
     }
 
     router.push({
-      pathname: "/onboarding/commitment",
+      pathname:
+        "/onboarding/commitment",
+
       params: {
         age: params.age ?? "",
         gender: params.gender ?? "",
         height: params.height ?? "",
         weight: params.weight ?? "",
         goal: params.goal ?? "",
-        activity: selectedActivity,
+
+        activityLevel:
+          selectedActivity,
+
+        daysPerWeek:
+          params.daysPerWeek ?? "",
+
+        minutesPerDay:
+          params.minutesPerDay ?? "",
+
+        foodPreference:
+          params.foodPreference ?? "",
       },
     });
   };
@@ -52,8 +79,6 @@ export default function ActivityScreen() {
   return (
     <ScreenContainer>
       <View style={styles.container}>
-
-        {/* BACK BUTTON */}
 
         <Pressable
           onPress={() => router.back()}
@@ -66,14 +91,10 @@ export default function ActivityScreen() {
           />
         </Pressable>
 
-        {/* STEP INDICATOR */}
-
         <StepIndicator
           current={4}
-          total={6}
+          total={7}
         />
-
-        {/* HEADER */}
 
         <AuthHeader
           title="Activity"
@@ -81,63 +102,61 @@ export default function ActivityScreen() {
           subtitle="How active are you on a typical week?"
         />
 
-        {/* SEDENTARY */}
-
         <SelectCard
           title="Sedentary"
           subtitle="Little or no exercise"
           icon="bed-outline"
           selected={
-            selectedActivity === "sedentary"
+            selectedActivity ===
+            "sedentary"
           }
           onPress={() =>
-            setSelectedActivity("sedentary")
+            setSelectedActivity(
+              "sedentary"
+            )
           }
         />
-
-        {/* LIGHT */}
 
         <SelectCard
           title="Light Exercise"
           subtitle="Exercise 1–3 days per week"
           icon="walk-outline"
           selected={
-            selectedActivity === "light"
+            selectedActivity ===
+            "light"
           }
           onPress={() =>
             setSelectedActivity("light")
           }
         />
 
-        {/* MODERATE */}
-
         <SelectCard
           title="Moderate Exercise"
           subtitle="Exercise 3–5 days per week"
           icon="fitness-outline"
           selected={
-            selectedActivity === "moderate"
+            selectedActivity ===
+            "moderate"
           }
           onPress={() =>
-            setSelectedActivity("moderate")
+            setSelectedActivity(
+              "moderate"
+            )
           }
         />
-
-        {/* HARD */}
 
         <SelectCard
           title="Hard Exercise"
           subtitle="Intense exercise 6–7 days per week"
           icon="barbell-outline"
           selected={
-            selectedActivity === "hard"
+            selectedActivity ===
+            "hard"
           }
           onPress={() =>
             setSelectedActivity("hard")
           }
         />
-
-        {/* CONTINUE */}
 
         <AuthButton
           title="Continue"
@@ -146,6 +165,17 @@ export default function ActivityScreen() {
 
       </View>
     </ScreenContainer>
+  );
+}
+
+function isValidActivity(
+  value?: string
+): value is ActivityLevel {
+  return (
+    value === "sedentary" ||
+    value === "light" ||
+    value === "moderate" ||
+    value === "hard"
   );
 }
 
@@ -159,11 +189,14 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+
     backgroundColor: "#17171E",
-    borderWidth: 1,
+borderWidth: 1,
     borderColor: "#2A2A2A",
+
     justifyContent: "center",
     alignItems: "center",
+
     marginBottom: 18,
   },
 });
