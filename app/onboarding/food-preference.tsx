@@ -5,7 +5,10 @@ import {
   Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
+import {
+  router,
+  useLocalSearchParams,
+} from "expo-router";
 
 import ScreenContainer from "../../components/common/ScreenContainer";
 import AuthHeader from "../../components/auth/AuthHeader";
@@ -16,21 +19,30 @@ import SelectCard from "../../components/auth/SelectCard";
 type FoodPreference =
   | "local"
   | "other"
-  | "local_plus_other";
+  | "mixed";
 
 export default function FoodPreferenceScreen() {
-  const params = useLocalSearchParams<{
-    age?: string;
-    gender?: string;
-    height?: string;
-    weight?: string;
-    goal?: string;
-    activity?: string;
-    commitment?: string;
-  }>();
+  const params =
+    useLocalSearchParams<{
+      age?: string;
+      gender?: string;
+      height?: string;
+      weight?: string;
+      goal?: string;
+      activityLevel?: string;
+      daysPerWeek?: string;
+      minutesPerDay?: string;
+      foodPreference?: string;
+    }>();
 
   const [selectedPreference, setSelectedPreference] =
-    useState<FoodPreference | null>(null);
+    useState<FoodPreference | null>(
+      isValidPreference(
+        params.foodPreference
+      )
+        ? params.foodPreference
+        : null
+    );
 
   const handleContinue = () => {
     if (!selectedPreference) {
@@ -38,16 +50,27 @@ export default function FoodPreferenceScreen() {
     }
 
     router.push({
-      pathname: "/onboarding/review",
+      pathname:
+        "/onboarding/review",
+
       params: {
         age: params.age ?? "",
         gender: params.gender ?? "",
         height: params.height ?? "",
         weight: params.weight ?? "",
         goal: params.goal ?? "",
-        activity: params.activity ?? "",
-        commitment: params.commitment ?? "",
-        foodPreference: selectedPreference,
+
+        activityLevel:
+          params.activityLevel ?? "",
+
+        daysPerWeek:
+          params.daysPerWeek ?? "",
+
+        minutesPerDay:
+          params.minutesPerDay ?? "",
+
+        foodPreference:
+          selectedPreference,
       },
     });
   };
@@ -55,8 +78,6 @@ export default function FoodPreferenceScreen() {
   return (
     <ScreenContainer>
       <View style={styles.container}>
-
-        {/* BACK BUTTON */}
 
         <Pressable
           onPress={() => router.back()}
@@ -69,14 +90,10 @@ export default function FoodPreferenceScreen() {
           />
         </Pressable>
 
-        {/* STEP INDICATOR */}
-
         <StepIndicator
           current={6}
           total={7}
         />
-
-        {/* HEADER */}
 
         <AuthHeader
           title="Food"
@@ -84,51 +101,50 @@ export default function FoodPreferenceScreen() {
           subtitle="What kind of food would you like TenaFit to recommend?"
         />
 
-        {/* LOCAL */}
-
         <SelectCard
           title="Local Foods"
           subtitle="Focus mainly on Ethiopian and local foods"
           icon="restaurant-outline"
           selected={
-            selectedPreference === "local"
+            selectedPreference ===
+            "local"
           }
           onPress={() =>
-            setSelectedPreference("local")
+            setSelectedPreference(
+              "local"
+            )
           }
         />
-
-        {/* OTHER */}
 
         <SelectCard
           title="Other Foods"
           subtitle="Focus mainly on international foods"
           icon="globe-outline"
           selected={
-            selectedPreference === "other"
+            selectedPreference ===
+            "other"
           }
           onPress={() =>
-            setSelectedPreference("other")
+            setSelectedPreference(
+              "other"
+            )
           }
         />
-
-        {/* LOCAL + OTHER */}
 
         <SelectCard
           title="Local + Other"
           subtitle="Mix Ethiopian and international foods"
           icon="earth-outline"
           selected={
-            selectedPreference === "local_plus_other"
+            selectedPreference ===
+            "mixed"
           }
           onPress={() =>
             setSelectedPreference(
-              "local_plus_other"
+              "mixed"
             )
           }
         />
-
-        {/* CONTINUE */}
 
         <AuthButton
           title="Continue"
@@ -137,6 +153,16 @@ export default function FoodPreferenceScreen() {
 
       </View>
     </ScreenContainer>
+  );
+}
+
+function isValidPreference(
+  value?: string
+): value is FoodPreference {
+  return (
+    value === "local" ||
+    value === "other" ||
+    value === "mixed"
   );
 }
 
@@ -150,11 +176,15 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+
     backgroundColor: "#17171E",
+
     borderWidth: 1,
     borderColor: "#2A2A2A",
+
     justifyContent: "center",
     alignItems: "center",
+
     marginBottom: 18,
   },
 });
