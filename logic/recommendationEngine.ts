@@ -16,7 +16,7 @@ import {
 } from "./foodFilter";
 
 import {
-  calculateNutritionTargets,
+  calculateNutritionTarget,
 } from "./nutritionCalculator";
 
 export interface MealRecommendation {
@@ -39,16 +39,16 @@ function getMealCaloriePercentage(
       return 0.25;
 
     case "lunch":
-      return 0.30;
+      return 0.35;
 
     case "dinner":
       return 0.30;
 
     case "snack":
-      return 0.15;
+      return 0.10;
 
     default:
-      return 0.25;
+      return 0;
   }
 }
 
@@ -132,7 +132,8 @@ function getGoalScore(
   food: Food,
   profile: UserProfile
 ): number {
-  const goalKey: keyof typeof food.suitableFor =
+  const goalKey:
+    keyof typeof food.suitableFor =
     profile.goal === "lose"
       ? "weightLoss"
       : profile.goal === "maintain"
@@ -190,8 +191,8 @@ function getTagScore(
   }
 
   /*
-   * High protein is generally
-   * useful for active users.
+   * High protein is useful for
+   * active users.
    */
   if (
     food.tags.some(
@@ -220,8 +221,9 @@ function getPreferenceScore(
   preference: UserProfile["foodPreference"]
 ): number {
   /*
-   * Local:
-   * local food receives maximum score.
+   * LOCAL
+   *
+   * Local foods receive maximum score.
    */
   if (preference === "local") {
     return food.cuisine === "local"
@@ -230,8 +232,9 @@ function getPreferenceScore(
   }
 
   /*
-   * Other:
-   * international food receives
+   * OTHER
+   *
+   * International/other foods receive
    * maximum score.
    */
   if (preference === "other") {
@@ -241,40 +244,50 @@ function getPreferenceScore(
   }
 
   /*
-   * Mixed:
+   * MIXED
    *
-   * We discussed that when both are
-   * selected, international/other
-   * foods should have priority.
+   * Both are allowed.
+   *
+   * Other foods receive higher priority,
+   * according to the agreed recommendation
+   * behavior.
    */
-  if (food.cuisine === "other") {
+  if (
+    food.cuisine === "other"
+  ) {
     return 15;
   }
 
   return 8;
 }
-
 /*
 =========================================================
 CALCULATE FOOD SCORE
 =========================================================
 */
+
 function calculateFoodScore(
   food: Food,
   profile: UserProfile,
   meal: MealType
 ): number {
   const targets =
-    calculateNutritionTargets(
-      profile
-    );
+    calculateNutritionTarget({
+      age: profile.age,
+      gender: profile.gender,
+      weightKg: profile.weightKg,
+      heightCm: profile.heightCm,
+      activityLevel:
+        profile.activityLevel,
+      goal: profile.goal,
+    });
 
   /*
    * Estimate the calories for this
    * particular meal.
    */
   const mealCalories =
-    targets.calories *
+    targets.targetCalories *
     getMealCaloriePercentage(
       meal
     );
@@ -283,7 +296,7 @@ function calculateFoodScore(
    * Estimate protein for this meal.
    */
   const mealProtein =
-    targets.protein *
+    targets.proteinGrams *
     getMealCaloriePercentage(
       meal
     );
@@ -399,7 +412,11 @@ export function getRecommendedFoods(
   );
 }
 
-
+/*
+=========================================================
+GET DAILY RECOMMENDATIONS
+=========================================================
+*/
 
 export function getDailyRecommendations(
   profile: UserProfile
