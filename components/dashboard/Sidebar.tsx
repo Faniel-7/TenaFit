@@ -4,20 +4,53 @@ import {
   Text,
   StyleSheet,
   Pressable,
+  ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, usePathname } from "expo-router";
 
-const dashboardData = {
-  user: {
-    fullName: "Faniel Negasi",
-    level: 12,
-    xp: 2850,
-    xpGoal: 5000,
-  },
+import { useAuth } from "../../context/AuthContext";
+
+type SidebarProps = {
+  fullName?: string;
 };
 
-export default function Sidebar() {
+type SidebarRoute =
+  | "/home"
+  | "/dashboard/plan"
+  | "/dashboard/progress"
+  | "/dashboard/meals"
+  | "/dashboard/workouts"
+  | "/dashboard/water"
+  | "/dashboard/reports"
+  | "/dashboard/settings";
+
+export default function Sidebar({
+  fullName,
+}: SidebarProps) {
+  const pathname = usePathname();
+  const { user } = useAuth();
+
+  const displayName =
+    fullName?.trim() ||
+    user?.fullName?.trim() ||
+    "Your Profile";
+
+  const navigate = (route: SidebarRoute) => {
+    router.replace(route);
+  };
+
+  const isActive = (route: SidebarRoute) => {
+    if (route === "/home") {
+      return (
+        pathname === "/home" ||
+        pathname === "/"
+      );
+    }
+
+    return pathname === route;
+  };
+
   return (
     <View style={styles.sidebar}>
       {/* LOGO */}
@@ -29,13 +62,9 @@ export default function Sidebar() {
           color="#FFC107"
         />
 
-        <Text
-          style={styles.sidebarLogoText}
-        >
+        <Text style={styles.sidebarLogoText}>
           Tena
-          <Text
-            style={styles.logoAccent}
-          >
+          <Text style={styles.logoAccent}>
             Fit
           </Text>
         </Text>
@@ -43,24 +72,30 @@ export default function Sidebar() {
 
       {/* NAVIGATION */}
 
-      <View
-        style={styles.sidebarNavigation}
+      <ScrollView
+        style={styles.navigationScroll}
+        contentContainerStyle={
+          styles.sidebarNavigation
+        }
+        showsVerticalScrollIndicator={false}
       >
         <SidebarItem
           icon="home"
           label="Home"
+          active={isActive("/home")}
           onPress={() =>
-            router.replace(
-              "/home"
-            )
+            navigate("/home")
           }
         />
 
         <SidebarItem
           icon="calendar-outline"
           label="Plan"
+          active={isActive(
+            "/dashboard/plan"
+          )}
           onPress={() =>
-            router.replace(
+            navigate(
               "/dashboard/plan"
             )
           }
@@ -69,8 +104,11 @@ export default function Sidebar() {
         <SidebarItem
           icon="bar-chart-outline"
           label="Progress"
+          active={isActive(
+            "/dashboard/progress"
+          )}
           onPress={() =>
-            router.replace(
+            navigate(
               "/dashboard/progress"
             )
           }
@@ -79,8 +117,11 @@ export default function Sidebar() {
         <SidebarItem
           icon="restaurant-outline"
           label="Meals"
+          active={isActive(
+            "/dashboard/meals"
+          )}
           onPress={() =>
-            router.replace(
+            navigate(
               "/dashboard/meals"
             )
           }
@@ -89,8 +130,11 @@ export default function Sidebar() {
         <SidebarItem
           icon="barbell-outline"
           label="Workouts"
+          active={isActive(
+            "/dashboard/workouts"
+          )}
           onPress={() =>
-            router.replace(
+            navigate(
               "/dashboard/workouts"
             )
           }
@@ -99,8 +143,11 @@ export default function Sidebar() {
         <SidebarItem
           icon="water-outline"
           label="Water"
+          active={isActive(
+            "/dashboard/water"
+          )}
           onPress={() =>
-            router.replace(
+            navigate(
               "/dashboard/water"
             )
           }
@@ -109,8 +156,11 @@ export default function Sidebar() {
         <SidebarItem
           icon="document-text-outline"
           label="Reports"
+          active={isActive(
+            "/dashboard/reports"
+          )}
           onPress={() =>
-            router.replace(
+            navigate(
               "/dashboard/reports"
             )
           }
@@ -119,118 +169,81 @@ export default function Sidebar() {
         <SidebarItem
           icon="settings-outline"
           label="Settings"
+          active={isActive(
+            "/dashboard/settings"
+          )}
           onPress={() =>
-            router.replace(
+            navigate(
               "/dashboard/settings"
             )
           }
         />
-      </View>
+      </ScrollView>
 
-      {/* PREMIUM */}
+      {/* FIXED BOTTOM AREA */}
 
-      <View
-        style={styles.premiumCard}
-      >
-        <Ionicons
-          name="diamond"
-          size={25}
-          color="#FFC107"
-        />
+      <View style={styles.sidebarBottom}>
+        {/* PREMIUM */}
 
-        <Text
-          style={styles.premiumTitle}
-        >
-          Go Premium
-        </Text>
-
-        <Text
-          style={styles.premiumText}
-        >
-          Unlock AI recommendations,
-          meal scanner, and more.
-        </Text>
-
-        <Pressable
-          style={
-            styles.upgradeButton
-          }
-        >
-          <Text
-            style={styles.upgradeText}
-          >
-            Upgrade Now
-          </Text>
-        </Pressable>
-      </View>
-
-      {/* USER */}
-
-      <View
-        style={styles.sidebarUser}
-      >
-        <View
-          style={
-            styles.sidebarUserAvatar
-          }
-        >
+        <View style={styles.premiumCard}>
           <Ionicons
-            name="person"
-            size={22}
-            color="#FFFFFF"
+            name="diamond"
+            size={25}
+            color="#FFC107"
           />
+
+          <Text style={styles.premiumTitle}>
+            Go Premium
+          </Text>
+<Text style={styles.premiumText}>
+            Unlock AI recommendations,
+            meal scanner, and more.
+          </Text>
+
+          <Pressable
+            style={styles.upgradeButton}
+          >
+            <Text style={styles.upgradeText}>
+              Upgrade Now
+            </Text>
+          </Pressable>
         </View>
 
-        <View
-          style={styles.sidebarUserInfo}
-        >
-          <Text
-            style={
-              styles.sidebarUserName
-            }
-          >
-            {
-              dashboardData.user
-                .fullName
-            }
-          </Text>
+        {/* USER */}
 
-          <Text
-            style={styles.sidebarLevel}
-          >
-            Level{" "}
-            {
-              dashboardData.user
-                .level
+        <View style={styles.sidebarUser}>
+          <View
+            style={
+              styles.sidebarUserAvatar
             }
-          </Text>
-<View
-            style={styles.xpTrack}
           >
-            <View
-              style={[
-                styles.xpFill,
-                {
-                  width: `${
-                    (dashboardData.user
-                      .xp /
-                      dashboardData.user
-                        .xpGoal) *
-                    100
-                  }%`,
-                },
-              ]}
+            <Ionicons
+              name="person"
+              size={22}
+              color="#FFFFFF"
             />
           </View>
 
-          <Text
-            style={styles.xpText}
+          <View
+            style={styles.sidebarUserInfo}
           >
-            {dashboardData.user.xp.toLocaleString()}{" "}
-            /{" "}
-            {dashboardData.user.xpGoal.toLocaleString()}{" "}
-            XP
-          </Text>
+            <Text
+              style={
+                styles.sidebarUserName
+              }
+              numberOfLines={1}
+            >
+              {displayName}
+            </Text>
+
+            <Text
+              style={
+                styles.sidebarUserStatus
+              }
+            >
+              Your TenaFit profile
+            </Text>
+          </View>
         </View>
       </View>
     </View>
@@ -240,25 +253,41 @@ export default function Sidebar() {
 function SidebarItem({
   icon,
   label,
+  active = false,
   onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
+  active?: boolean;
   onPress: () => void;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      style={styles.sidebarItem}
+      style={({ pressed }) => [
+        styles.sidebarItem,
+        active &&
+          styles.sidebarItemActive,
+        pressed &&
+          styles.sidebarItemPressed,
+      ]}
     >
       <Ionicons
         name={icon}
         size={23}
-        color="#A8ADB8"
+        color={
+          active
+            ? "#FFC107"
+            : "#A8ADB8"
+        }
       />
 
       <Text
-        style={styles.sidebarItemText}
+        style={[
+          styles.sidebarItemText,
+          active &&
+            styles.sidebarItemTextActive,
+        ]}
       >
         {label}
       </Text>
@@ -266,156 +295,149 @@ function SidebarItem({
   );
 }
 
-const styles =
-  StyleSheet.create({
-    sidebar: {
-      width: 245,
-      backgroundColor:
-        "#0B0E14",
-      borderRightWidth: 1,
-      borderRightColor:
-        "#20242D",
-      paddingHorizontal: 17,
-      paddingTop: 25,
-      paddingBottom: 20,
-    },
+const styles = StyleSheet.create({
+  sidebar: {
+    width: 245,
+    minWidth: 245,
+    height: "100%",
+    backgroundColor: "#0B0E14",
+    borderRightWidth: 1,
+    borderRightColor: "#20242D",
+    paddingHorizontal: 17,
+    paddingTop: 25,
+    paddingBottom: 20,
+  },
 
-    sidebarLogo: {
-      flexDirection: "row",
-      alignItems: "center",
-      marginBottom: 35,
-      paddingHorizontal: 8,
-    },
+  sidebarLogo: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 22,
+    paddingHorizontal: 8,
+  },
 
-    sidebarLogoText: {
-      color: "#FFFFFF",
-      fontSize: 24,
-      fontWeight: "900",
-      marginLeft: 10,
-      letterSpacing: -0.5,
-    },
+  sidebarLogoText: {
+    color: "#FFFFFF",
+    fontSize: 24,
+    fontWeight: "900",
+    marginLeft: 10,
+    letterSpacing: -0.5,
+  },
 
-    logoAccent: {
-      color: "#FFC107",
-    },
+  logoAccent: {
+    color: "#FFC107",
+  },
 
-    sidebarNavigation: {
-      gap: 7,
-      flex: 1,
-    },
+  navigationScroll: {
+    flex: 1,
+    minHeight: 0,
+  },
 
-    sidebarItem: {
-      height: 47,
-      borderRadius: 11,
-      flexDirection: "row",
-      alignItems: "center",
-      paddingHorizontal: 13,
-    },
+  sidebarNavigation: {
+    gap: 7,
+    paddingBottom: 12,
+  },
 
-    sidebarItemText: {
-      color: "#A8ADB8",
-      fontSize: 13,
-      fontWeight: "700",
-      marginLeft: 12,
-    },
+  sidebarItem: {
+    minHeight: 47,
+    borderRadius: 11,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 13,
+  },
 
-    premiumCard: {
-      backgroundColor:
-        "#151922",
-      borderWidth: 1,
-      borderColor:
-        "#2A2F3A",
-      borderRadius: 15,
-      padding: 15,
-      marginBottom: 18,
-    },
+  sidebarItemActive: {
+    backgroundColor: "#171A22",
+  },
 
-    premiumTitle: {
-      color: "#FFFFFF",
-      fontSize: 14,
-      fontWeight: "900",
-      marginTop: 9,
-    },
+  sidebarItemPressed: {
+    opacity: 0.75,
+  },
 
-    premiumText: {
-      color: "#8F96A3",
-      fontSize: 11,
-      lineHeight: 17,
-      marginTop: 5,
-    },
+  sidebarItemText: {
+    color: "#A8ADB8",
+    fontSize: 13,
+    fontWeight: "700",
+    marginLeft: 12,
+  },
 
-    upgradeButton: {
-      height: 34,
-      borderRadius: 8,
-      backgroundColor:
-        "#FFC107",
-      alignItems: "center",
-      justifyContent:
-        "center",
-      marginTop: 12,
-    },
+  sidebarItemTextActive: {
+    color: "#FFC107",
+    fontWeight: "800",
+  },
 
-    upgradeText: {
-      color: "#111111",
-      fontSize: 11,
-      fontWeight: "900",
-    },
+  sidebarBottom: {
+    flexShrink: 0,
+    paddingTop: 12,
+  },
 
-    sidebarUser: {
-      flexDirection: "row",
-      alignItems: "center",
-    },
+  premiumCard: {
+    backgroundColor: "#151922",
+    borderWidth: 1,
+    borderColor: "#2A2F3A",
+    borderRadius: 15,
+    padding: 15,
+    marginBottom: 18,
+  },
 
-    sidebarUserAvatar: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      borderWidth: 2,
-      borderColor:
-        "#FFC107",
-      backgroundColor:
-        "#22252A",
-      alignItems: "center",
-      justifyContent:
-        "center",
-    },
+  premiumTitle: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "900",
+    marginTop: 9,
+  },
 
-    sidebarUserInfo: {
-      flex: 1,
-      marginLeft: 11,
-    },
+  premiumText: {
+    color: "#8F96A3",
+    fontSize: 11,
+    lineHeight: 17,
+    marginTop: 5,
+  },
 
-    sidebarUserName: {
-      color: "#FFFFFF",
-      fontSize: 13,
-      fontWeight: "800",
-    },
+  upgradeButton: {
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: "#FFC107",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 12,
+  },
 
-    sidebarLevel: {
-      color: "#9CA3AF",
-      fontSize: 11,
-      marginTop: 2,
-    },
+  upgradeText: {
+    color: "#111111",
+    fontSize: 11,
+    fontWeight: "900",
+  },
 
-    xpTrack: {
-      height: 6,
-      borderRadius: 3,
-      backgroundColor:
-        "#252A33",
-      overflow: "hidden",
-      marginTop: 8,
-    },
+  sidebarUser: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
 
-    xpFill: {
-      height: "100%",
-      backgroundColor:
-        "#FFC107",
-      borderRadius: 3,
-    },
+  sidebarUserAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: "#FFC107",
+    backgroundColor: "#22252A",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+sidebarUserInfo: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: 11,
+  },
 
-    xpText: {
-      color: "#9CA3AF",
-      fontSize: 10,
-      marginTop: 5,
-    },
-  });
+  sidebarUserName: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+
+  sidebarUserStatus: {
+    color: "#9CA3AF",
+    fontSize: 10,
+    marginTop: 3,
+  },
+});
