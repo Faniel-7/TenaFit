@@ -50,8 +50,7 @@ export interface NutritionTarget {
   fatGrams: number;
 
   /*
-   * Fiber is kept as a target range because a single
-   * exact value is not appropriate for every person.
+   * Minimum daily fiber target.
    */
   fiberMinGrams: number;
 }
@@ -133,8 +132,14 @@ function calculateTargetCalories(
   goal: UserGoal
 ): number {
   const adjustment =
-    getGoalCalorieAdjustment(goal);
+    getGoalCalorieAdjustment(
+      goal
+    );
 
+  /*
+   * Keep a conservative lower floor
+   * for the app's planning calculation.
+   */
   return Math.max(
     1000,
     maintenanceCalories +
@@ -169,7 +174,11 @@ them more personalized based on goal and activity.
 
 function calculateMacros(
   calories: number
-) {
+): {
+  proteinGrams: number;
+  carbohydrateGrams: number;
+  fatGrams: number;
+} {
   const proteinCalories =
     calories * 0.25;
 
@@ -205,11 +214,12 @@ function calculateFiberTarget(
   calories: number
 ): number {
   /*
-   * Simple planning estimate:
+   * Planning estimate:
    * approximately 14 g per 1,000 kcal.
    */
-
-  return calories * 14 / 1000;
+  return (
+    (calories * 14) / 1000
+  );
 }
 
 /*
@@ -235,12 +245,12 @@ export function calculateNutritionTarget(
       maintenanceCalories,
       input.goal
     );
-
-  const macros =
+const macros =
     calculateMacros(
       targetCalories
     );
-const fiberMinGrams =
+
+  const fiberMinGrams =
     calculateFiberTarget(
       targetCalories
     );
