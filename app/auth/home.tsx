@@ -11,7 +11,6 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
-
 import GoalCard from "../../components/dashboard/GoalCard";
 import MacroCard from "../../components/dashboard/MacroCard";
 import QuickAction from "../../components/dashboard/QuickAction";
@@ -19,6 +18,11 @@ import MealCard from "../../components/dashboard/MealCard";
 import WaterCard from "../../components/dashboard/WaterCard";
 import DailyTip from "../../components/dashboard/DailyTip";
 import BottomNav from "../../components/dashboard/BottomNav";
+
+import { useAuth } from "../../context/AuthContext";
+import { getUserProfile } from "../../storage/profileStorage";
+import { UserProfile } from "../../types/userProfile";
+import { calculateNutritionTarget } from "../../logic/nutritionCalculator";
 
 const isWeb = Platform.OS === "web";
 
@@ -87,49 +91,53 @@ function useIsMobileLayout() {
 
 /*
 =========================================================
-DASHBOARD DATA
+HOME DATA
 =========================================================
 */
 
-const dashboardData = {
-  user: {
-    firstName: "Faniel",
-    fullName: "Faniel Negasi",
-    level: 12,
-    xp: 2850,
-    xpGoal: 5000,
-  },
+type HomeData = {
+  firstName: string;
+  fullName: string;
+
+  /*
+   * These remain as the existing temporary
+   * gamification values until that system
+   * is connected later.
+   */
+  level: number;
+  xp: number;
+  xpGoal: number;
 
   calories: {
-    consumed: 1240,
-    goal: 1850,
-  },
+    consumed: number;
+    goal: number;
+  };
 
   macros: {
     protein: {
-      current: 82,
-      target: 120,
-    },
+      current: number;
+      target: number;
+    };
 
     carbs: {
-      current: 140,
-      target: 210,
-    },
+      current: number;
+      target: number;
+    };
 
     fats: {
-      current: 38,
-      target: 60,
-    },
-  },
+      current: number;
+      target: number;
+    };
+  };
 
   water: {
-    consumed: 1.6,
-    target: 2.5,
-    glassesConsumed: 4,
-    totalGlasses: 6,
-  },
+    consumed: number;
+    target: number;
+    glassesConsumed: number;
+    totalGlasses: number;
+  };
 
-  tip: "Stay consistent, even on your off days. Your future self will thank you.",
+  tip: string;
 };
 
 /*
@@ -141,20 +149,224 @@ HOME
 export default function HomeScreen() {
   const isMobile = useIsMobileLayout();
 
+  const { user } = useAuth();
+
+  const [profile, setProfile] =
+    useState<UserProfile | null>(null);
+
+  const [loadingProfile, setLoadingProfile] =
+    useState(true);
+
+  /*
+   * Load the user's saved onboarding
+   * profile when Home opens.
+   */
+  useEffect(() => {
+    let mounted = true;
+
+    const loadProfile = async () => {
+      try {
+        const savedProfile =
+          await getUserProfile();
+
+        if (mounted) {
+          setProfile(savedProfile);
+        }
+      } catch (error) {
+        console.error(
+          "Failed to load Home profile:",
+          error
+        );
+      } finally {
+        if (mounted) {
+          setLoadingProfile(false);
+        }
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+/*
+   * If there is no profile, send the user
+   * back to onboarding.
+   */
+  useEffect(() => {
+    if (
+      !loadingProfile &&
+      !profile
+    ) {
+      router.replace(
+        "/onboarding/personal-info"
+      );
+    }
+  }, [
+    loadingProfile,
+    profile,
+  ]);
+
+  /*
+   * Do not render the dashboard until
+   * the profile has been loaded.
+   */
+  if (
+    loadingProfile ||
+    !profile
+  ) {
+    return (
+      <SafeAreaView
+        style={styles.safeArea}
+      >
+        <View
+          style={
+            styles.loadingContainer
+          }
+        >
+          <Text
+            style={
+              styles.loadingText
+            }
+          >
+            {loadingProfile
+              ? "Loading your TenaFit profile..."
+              : "Redirecting to setup..."}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  /*
+   * The account name comes from AuthContext.
+   */
+  const fullName =
+    user?.fullName?.trim() ||
+    "TenaFit User";
+
+  const firstName =
+    fullName.split(" ")[0] ||
+    "there";
+
+  /*
+   * Calculate personalized nutrition
+   * targets using the existing nutrition
+   * calculator.
+   */
+  const nutrition =
+    calculateNutritionTarget({
+      age: profile.age,
+
+      gender: profile.gender,
+
+      weightKg:
+        profile.weightKg,
+
+      heightCm:
+        profile.heightCm,
+
+      activityLevel:
+        profile.activityLevel,
+
+      goal:
+        profile.goal,
+    });
+
+  /*
+   * Build the data structure used by
+   * the existing Home UI.
+   */
+  const homeData: HomeData = {
+    firstName,
+
+    fullName,
+
+    /*
+     * Keep the existing gamification
+     * values for now.
+     */
+    level: 12,
+    xp: 2850,
+    xpGoal: 5000,
+
+    /*
+     * Meal tracking is not connected yet.
+     * Therefore consumed calories start
+     * at zero.
+     *
+     * The calorie TARGET is real and
+     * comes from the user's profile.
+     */
+    calories: {
+      consumed: 0,
+      goal:
+        nutrition.targetCalories,
+    },
+
+    /*
+     * Macro TARGETS are personalized.
+     *
+     * Current consumed values remain
+     * zero until Tracking is implemented.
+     */
+    macros: {
+      protein: {
+        current: 0,
+        target:
+          nutrition.proteinGrams,
+      },
+
+      carbs: {
+        current: 0,
+        target:
+          nutrition.carbohydrateGrams,
+      },
+
+      fats: {
+        current: 0,
+        target:
+          nutrition.fatGrams,
+      },
+    },
+
+    /*
+     * Water tracking will be connected
+     * during the Tracking step.
+     */
+    water: {
+      consumed: 0,
+      target: 2.5,
+      glassesConsumed: 0,
+      totalGlasses: 6,
+    },
+
+    tip:
+      "Stay consistent, even on your off days. Your future self will thank you.",
+  };
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView
+      style={styles.safeArea}
+    >
       <View
         style={[
           styles.screen,
+
           isMobile
             ? styles.mobileScreen
             : styles.desktopScreen,
         ]}
       >
         {isMobile ? (
-          <MobileHome />
+          <MobileHome
+            data={homeData}
+          />
         ) : (
-          <DesktopHome />
+          <DesktopHome
+            data={homeData}
+          />
         )}
       </View>
     </SafeAreaView>
@@ -167,35 +379,63 @@ MOBILE HOME
 =========================================================
 */
 
-function MobileHome() {
+function MobileHome({
+  data,
+}: {
+  data: HomeData;
+}) {
   return (
     <View style={styles.mobileRoot}>
       <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.mobileContent}
+        showsVerticalScrollIndicator={
+          false
+        }
+        contentContainerStyle={
+          styles.mobileContent
+        }
       >
         {/* HEADER */}
 
-        <View style={styles.mobileHeader}>
-          <View style={styles.logoRow}>
-            <View style={styles.logoIcon}>
+        <View
+          style={
+            styles.mobileHeader
+          }
+        >
+          <View
+            style={styles.logoRow}
+          >
+            <View
+              style={styles.logoIcon}
+            >
               <Ionicons
                 name="fitness"
                 size={27}
                 color="#FFC107"
               />
             </View>
-
-            <Text style={styles.logoText}>
+<Text
+              style={styles.logoText}
+            >
               Tena
-              <Text style={styles.logoAccent}>
+              <Text
+                style={
+                  styles.logoAccent
+                }
+              >
                 Fit
               </Text>
             </Text>
           </View>
-<View style={styles.headerActions}>
+
+          <View
+            style={
+              styles.headerActions
+            }
+          >
             <Pressable
-              style={styles.notificationButton}
+              style={
+                styles.notificationButton
+              }
             >
               <Ionicons
                 name="notifications-outline"
@@ -204,11 +444,15 @@ function MobileHome() {
               />
 
               <View
-                style={styles.notificationDot}
+                style={
+                  styles.notificationDot
+                }
               />
             </Pressable>
 
-            <Pressable style={styles.mobileAvatar}>
+            <Pressable
+              style={styles.mobileAvatar}
+            >
               <Ionicons
                 name="person"
                 size={24}
@@ -220,14 +464,27 @@ function MobileHome() {
 
         {/* GREETING */}
 
-        <View style={styles.mobileGreeting}>
-          <Text style={styles.mobileGreetingTitle}>
+        <View
+          style={
+            styles.mobileGreeting
+          }
+        >
+          <Text
+            style={
+              styles.mobileGreetingTitle
+            }
+          >
             Good evening,{" "}
-            {dashboardData.user.firstName} 👋
+            {data.firstName} 👋
           </Text>
 
-          <Text style={styles.mobileGreetingSubtitle}>
-            Ready to stay on track and crush your goals?
+          <Text
+            style={
+              styles.mobileGreetingSubtitle
+            }
+          >
+            Ready to stay on track and
+            crush your goals?
           </Text>
         </View>
 
@@ -236,24 +493,28 @@ function MobileHome() {
         <GoalCard
           mobile
           consumed={
-            dashboardData.calories.consumed
+            data.calories.consumed
           }
           goal={
-            dashboardData.calories.goal
+            data.calories.goal
           }
         />
 
         {/* MACROS */}
 
-        <View style={styles.mobileMacroRow}>
+        <View
+          style={
+            styles.mobileMacroRow
+          }
+        >
           <MacroCard
             icon="fitness-outline"
             title="PROTEIN"
             value={
-              dashboardData.macros.protein.current
+              data.macros.protein.current
             }
             target={
-              dashboardData.macros.protein.target
+              data.macros.protein.target
             }
             type="protein"
           />
@@ -262,10 +523,10 @@ function MobileHome() {
             icon="leaf-outline"
             title="CARBS"
             value={
-              dashboardData.macros.carbs.current
+              data.macros.carbs.current
             }
             target={
-              dashboardData.macros.carbs.target
+              data.macros.carbs.target
             }
             type="carbs"
           />
@@ -274,10 +535,10 @@ function MobileHome() {
             icon="water-outline"
             title="FATS"
             value={
-              dashboardData.macros.fats.current
+              data.macros.fats.current
             }
             target={
-              dashboardData.macros.fats.target
+              data.macros.fats.target
             }
             type="fats"
           />
@@ -285,18 +546,28 @@ function MobileHome() {
 
         {/* QUICK ACTIONS */}
 
-        <Text style={styles.mobileSectionTitle}>
+        <Text
+          style={
+            styles.mobileSectionTitle
+          }
+        >
           QUICK ACTIONS
         </Text>
 
-        <View style={styles.mobileQuickActions}>
+        <View
+          style={
+            styles.mobileQuickActions
+          }
+        >
           <QuickAction
             icon="add"
             title="Add Meal"
             subtitle="Log your food"
             onPress={() => {
-  console.log("Add Meal navigation will be connected in the Tracking step.");
-}}
+              console.log(
+                "Add Meal navigation will be connected in the Tracking step."
+              );
+            }}
           />
 
           <QuickAction
@@ -304,44 +575,47 @@ function MobileHome() {
             title="Scan Food"
             subtitle="Scan barcode or QR"
             onPress={() => {
-  console.log("Scan Food navigation will be connected in the Scanner step.");
-}}
+              console.log(
+                "Scan Food navigation will be connected in the Scanner step."
+              );
+            }}
           />
         </View>
 
         {/* LOWER */}
 
-        <View style={styles.mobileLower}>
+        <View
+          style={styles.mobileLower}
+        >
           <MealCard />
 
           <WaterCard
             consumed={
-              dashboardData.water.consumed
+              data.water.consumed
             }
             target={
-              dashboardData.water.target
+              data.water.target
             }
             glassesConsumed={
-              dashboardData.water.glassesConsumed
+              data.water.glassesConsumed
             }
             totalGlasses={
-              dashboardData.water.totalGlasses
+              data.water.totalGlasses
             }
           />
-
-          <DailyTip
-            tip={dashboardData.tip}
+<DailyTip
+            tip={data.tip}
           />
         </View>
       </ScrollView>
 
       <BottomNav
-  onAddPress={() => {
-    console.log(
-      "Add Meal navigation will be connected in the Tracking step."
-    );
-  }}
-/>
+        onAddPress={() => {
+          console.log(
+            "Add Meal navigation will be connected in the Tracking step."
+          );
+        }}
+      />
     </View>
   );
 }
@@ -352,38 +626,64 @@ DESKTOP HOME
 =========================================================
 */
 
-function DesktopHome() {
+function DesktopHome({
+  data,
+}: {
+  data: HomeData;
+}) {
   return (
-    <View style={styles.desktopRoot}>
-      <Sidebar />
+    <View
+      style={styles.desktopRoot}
+    >
+      <Sidebar data={data} />
 
-      <View style={styles.desktopMain}>
+      <View
+        style={styles.desktopMain}
+      >
         <ScrollView
-          showsVerticalScrollIndicator={false}
+          showsVerticalScrollIndicator={
+            false
+          }
           contentContainerStyle={
             styles.desktopContent
           }
         >
           {/* TOP HEADER */}
 
-          <View style={styles.desktopHeader}>
+          <View
+            style={
+              styles.desktopHeader
+            }
+          >
             <View>
-              <Text style={styles.desktopGreetingTitle}>
-                Good evening,{" "}
-                {dashboardData.user.firstName} 👋
-              </Text>
-<Text
-                style={styles.desktopGreetingSubtitle}
+              <Text
+                style={
+                  styles.desktopGreetingTitle
+                }
               >
-                Ready to stay on track and crush your goals?
+                Good evening,{" "}
+                {data.firstName} 👋
+              </Text>
+
+              <Text
+                style={
+                  styles.desktopGreetingSubtitle
+                }
+              >
+                Ready to stay on track
+                and crush your goals?
               </Text>
             </View>
 
             <View
-              style={styles.desktopHeaderActions}
+              style={
+                styles.desktopHeaderActions
+              }
             >
               <Pressable
-                style={styles.notificationButton}
+                style={
+                  styles.notificationButton
+                }
               >
                 <Ionicons
                   name="notifications-outline"
@@ -392,11 +692,17 @@ function DesktopHome() {
                 />
 
                 <View
-                  style={styles.notificationDot}
+                  style={
+                    styles.notificationDot
+                  }
                 />
               </Pressable>
 
-              <Pressable style={styles.desktopAvatar}>
+              <Pressable
+                style={
+                  styles.desktopAvatar
+                }
+              >
                 <Ionicons
                   name="person"
                   size={25}
@@ -408,28 +714,44 @@ function DesktopHome() {
 
           {/* TOP GRID */}
 
-          <View style={styles.desktopTopGrid}>
-            <View style={styles.desktopGoalColumn}>
+          <View
+            style={
+              styles.desktopTopGrid
+            }
+          >
+            <View
+              style={
+                styles.desktopGoalColumn
+              }
+            >
               <GoalCard
                 consumed={
-                  dashboardData.calories.consumed
+                  data.calories.consumed
                 }
                 goal={
-                  dashboardData.calories.goal
+                  data.calories.goal
                 }
               />
             </View>
 
-            <View style={styles.desktopRightTop}>
-              <View style={styles.desktopMacroRow}>
+            <View
+              style={
+                styles.desktopRightTop
+              }
+            >
+              <View
+                style={
+                  styles.desktopMacroRow
+                }
+              >
                 <MacroCard
                   icon="fitness-outline"
                   title="PROTEIN"
                   value={
-                    dashboardData.macros.protein.current
+                    data.macros.protein.current
                   }
                   target={
-                    dashboardData.macros.protein.target
+                    data.macros.protein.target
                   }
                   type="protein"
                 />
@@ -438,10 +760,10 @@ function DesktopHome() {
                   icon="leaf-outline"
                   title="CARBS"
                   value={
-                    dashboardData.macros.carbs.current
+                    data.macros.carbs.current
                   }
                   target={
-                    dashboardData.macros.carbs.target
+                    data.macros.carbs.target
                   }
                   type="carbs"
                 />
@@ -450,36 +772,43 @@ function DesktopHome() {
                   icon="water-outline"
                   title="FATS"
                   value={
-                    dashboardData.macros.fats.current
+                    data.macros.fats.current
                   }
                   target={
-                    dashboardData.macros.fats.target
+                    data.macros.fats.target
                   }
                   type="fats"
                 />
               </View>
-
-              <Text
-                style={styles.desktopSectionTitle}
+<Text
+                style={
+                  styles.desktopSectionTitle
+                }
               >
                 QUICK ACTIONS
               </Text>
 
               <View
-                style={styles.desktopQuickActions}
+                style={
+                  styles.desktopQuickActions
+                }
               >
                 <QuickAction
                   icon="add"
                   title="Add Meal"
                   subtitle="Log your food"
-                  onPress={() => router.push("/")}
+                  onPress={() =>
+                    router.push("/")
+                  }
                 />
 
                 <QuickAction
                   icon="scan-outline"
                   title="Scan Food"
                   subtitle="Scan barcode or QR"
-                  onPress={() => router.push("/")}
+                  onPress={() =>
+                    router.push("/")
+                  }
                 />
               </View>
             </View>
@@ -487,27 +816,35 @@ function DesktopHome() {
 
           {/* LOWER GRID */}
 
-          <View style={styles.desktopLowerGrid}>
+          <View
+            style={
+              styles.desktopLowerGrid
+            }
+          >
             <MealCard />
 
-            <View style={styles.desktopLowerRight}>
+            <View
+              style={
+                styles.desktopLowerRight
+              }
+            >
               <WaterCard
                 consumed={
-                  dashboardData.water.consumed
+                  data.water.consumed
                 }
                 target={
-                  dashboardData.water.target
+                  data.water.target
                 }
                 glassesConsumed={
-                  dashboardData.water.glassesConsumed
+                  data.water.glassesConsumed
                 }
                 totalGlasses={
-                  dashboardData.water.totalGlasses
+                  data.water.totalGlasses
                 }
               />
 
               <DailyTip
-                tip={dashboardData.tip}
+                tip={data.tip}
               />
             </View>
           </View>
@@ -522,118 +859,172 @@ function DesktopHome() {
 SIDEBAR
 =========================================================
 */
-function Sidebar() {
+
+function Sidebar({
+  data,
+}: {
+  data: HomeData;
+}) {
   return (
-    <View style={styles.sidebar}>
-      <View style={styles.sidebarLogo}>
+    <View
+      style={styles.sidebar}
+    >
+      <View
+        style={styles.sidebarLogo}
+      >
         <Ionicons
           name="fitness"
           size={31}
           color="#FFC107"
         />
 
-        <Text style={styles.sidebarLogoText}>
+        <Text
+          style={
+            styles.sidebarLogoText
+          }
+        >
           Tena
-          <Text style={styles.logoAccent}>
+          <Text
+            style={
+              styles.logoAccent
+            }
+          >
             Fit
           </Text>
         </Text>
       </View>
 
-      <View style={styles.sidebarNavigation}>
+      <View
+        style={
+          styles.sidebarNavigation
+        }
+      >
         <SidebarItem
-  icon="home"
-  label="Home"
-  active
-  onPress={() =>
-    router.push("/home")
-  }
-/>
+          icon="home"
+          label="Home"
+          active
+          onPress={() =>
+            router.push("/home")
+          }
+        />
 
-<SidebarItem
-  icon="calendar-outline"
-  label="Plan"
-  onPress={() =>
-    router.push("/dashboard/plan")
-  }
-/>
+        <SidebarItem
+          icon="calendar-outline"
+          label="Plan"
+          onPress={() =>
+            router.push(
+              "/dashboard/plan"
+            )
+          }
+        />
 
-<SidebarItem
-  icon="bar-chart-outline"
-  label="Progress"
-  onPress={() =>
-    router.push("/dashboard/progress")
-  }
-/>
+        <SidebarItem
+          icon="bar-chart-outline"
+          label="Progress"
+          onPress={() =>
+            router.push(
+              "/dashboard/progress"
+            )
+          }
+        />
 
-<SidebarItem
-  icon="restaurant-outline"
-  label="Meals"
-  onPress={() =>
-    router.push("/dashboard/meals")
-  }
-/>
+        <SidebarItem
+          icon="restaurant-outline"
+          label="Meals"
+          onPress={() =>
+            router.push(
+              "/dashboard/meals"
+            )
+          }
+        />
 
-<SidebarItem
-  icon="barbell-outline"
-  label="Workouts"
-  onPress={() =>
-    router.push("/dashboard/workouts")
-  }
-/>
+        <SidebarItem
+          icon="barbell-outline"
+          label="Workouts"
+          onPress={() =>
+            router.push(
+              "/dashboard/workouts"
+            )
+          }
+        />
 
-<SidebarItem
-  icon="water-outline"
-  label="Water"
-  onPress={() =>
-    router.push("/dashboard/water")
-  }
-/>
+        <SidebarItem
+          icon="water-outline"
+          label="Water"
+          onPress={() =>
+            router.push(
+              "/dashboard/water"
+            )
+          }
+        />
 
-<SidebarItem
-  icon="document-text-outline"
-  label="Reports"
-  onPress={() =>
-    router.push("/dashboard/reports")
-  }
-/>
+        <SidebarItem
+          icon="document-text-outline"
+          label="Reports"
+          onPress={() =>
+            router.push(
+              "/dashboard/reports"
+            )
+          }
+        />
 
-<SidebarItem
-  icon="settings-outline"
-  label="Settings"
-  onPress={() =>
-    router.push("/dashboard/settings")
-  }
-/>
+        <SidebarItem
+          icon="settings-outline"
+          label="Settings"
+          onPress={() =>
+            router.push(
+              "/dashboard/settings"
+            )
+          }
+        />
       </View>
-
-      <View style={styles.premiumCard}>
+<View
+        style={styles.premiumCard}
+      >
         <Ionicons
           name="diamond"
           size={25}
           color="#FFC107"
         />
 
-        <Text style={styles.premiumTitle}>
+        <Text
+          style={
+            styles.premiumTitle
+          }
+        >
           Go Premium
         </Text>
 
-        <Text style={styles.premiumText}>
+        <Text
+          style={styles.premiumText}
+        >
           Unlock AI recommendations,
           meal scanner, and more.
         </Text>
 
         <Pressable
-          style={styles.upgradeButton}
+          style={
+            styles.upgradeButton
+          }
         >
-          <Text style={styles.upgradeText}>
+          <Text
+            style={
+              styles.upgradeText
+            }
+          >
             Upgrade Now
           </Text>
         </Pressable>
       </View>
 
-      <View style={styles.sidebarUser}>
-        <View style={styles.sidebarUserAvatar}>
+      <View
+        style={styles.sidebarUser}
+      >
+        <View
+          style={
+            styles.sidebarUserAvatar
+          }
+        >
           <Ionicons
             name="person"
             size={22}
@@ -641,33 +1032,51 @@ function Sidebar() {
           />
         </View>
 
-        <View style={styles.sidebarUserInfo}>
-          <Text style={styles.sidebarUserName}>
-            {dashboardData.user.fullName}
+        <View
+          style={
+            styles.sidebarUserInfo
+          }
+        >
+          <Text
+            style={
+              styles.sidebarUserName
+            }
+          >
+            {data.fullName}
           </Text>
 
-          <Text style={styles.sidebarLevel}>
-            Level {dashboardData.user.level}
+          <Text
+            style={
+              styles.sidebarLevel
+            }
+          >
+            Level {data.level}
           </Text>
 
-          <View style={styles.xpTrack}>
+          <View
+            style={styles.xpTrack}
+          >
             <View
               style={[
                 styles.xpFill,
                 {
                   width: `${
-                    (dashboardData.user.xp /
-                      dashboardData.user.xpGoal) *
-                    100
+                    Math.min(
+                      data.xp /
+                        data.xpGoal,
+                      1
+                    ) * 100
                   }%`,
                 },
               ]}
             />
           </View>
 
-          <Text style={styles.xpText}>
-            {dashboardData.user.xp.toLocaleString()} /{" "}
-            {dashboardData.user.xpGoal.toLocaleString()} XP
+          <Text
+            style={styles.xpText}
+          >
+            {data.xp.toLocaleString()} /{" "}
+            {data.xpGoal.toLocaleString()} XP
           </Text>
         </View>
       </View>
@@ -745,6 +1154,19 @@ const styles = StyleSheet.create({
     width: "100%",
   },
 
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#05070B",
+  },
+
+  loadingText: {
+    color: "#8B8F98",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+
   mobileRoot: {
     flex: 1,
     width: "100%",
@@ -756,7 +1178,8 @@ const styles = StyleSheet.create({
     paddingBottom: 115,
     width: "100%",
   },
-mobileHeader: {
+
+  mobileHeader: {
     width: "100%",
     flexDirection: "row",
     justifyContent: "space-between",
@@ -794,8 +1217,7 @@ mobileHeader: {
     position: "relative",
     padding: 5,
   },
-
-  notificationDot: {
+notificationDot: {
     position: "absolute",
     right: 4,
     top: 2,
@@ -1007,7 +1429,8 @@ mobileHeader: {
     overflow: "hidden",
     marginTop: 8,
   },
-xpFill: {
+
+  xpFill: {
     height: "100%",
     backgroundColor: "#FFC107",
     borderRadius: 3,
@@ -1039,8 +1462,7 @@ xpFill: {
     alignItems: "center",
     marginBottom: 27,
   },
-
-  desktopGreetingTitle: {
+desktopGreetingTitle: {
     color: "#FFFFFF",
     fontSize: 30,
     fontWeight: "900",
