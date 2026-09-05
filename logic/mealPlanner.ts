@@ -12,7 +12,7 @@ import {
 } from "./recommendationEngine";
 
 import {
-  calculateNutritionTargets,
+  calculateNutritionTarget,
 } from "./nutritionCalculator";
 
 /*
@@ -94,40 +94,19 @@ function getMealTitle(
 
 /*
 =========================================================
-MEAL CALORIE DISTRIBUTION
-=========================================================
-*/
-
-function getMealPercentage(
-  meal: MealType
-): number {
-  switch (meal) {
-    case "breakfast":
-      return 0.25;
-
-    case "lunch":
-      return 0.30;
-
-    case "dinner":
-      return 0.30;
-
-    case "snack":
-      return 0.15;
-
-    default:
-      return 0.25;
-  }
-}
-
-/*
-=========================================================
 CALCULATE MEAL NUTRITION
 =========================================================
 */
 
 function calculateMealNutrition(
   foods: Food[]
-) {
+): {
+  calories: number;
+  protein: number;
+  carbohydrates: number;
+  fat: number;
+  fiber: number;
+} {
   return foods.reduce(
     (totals, food) => ({
       calories:
@@ -170,11 +149,6 @@ function createMeal(
   profile: UserProfile,
   meal: MealType
 ): PlannedMeal {
-  const targets =
-    calculateNutritionTargets(
-      profile
-    );
-
   const recommendedFoods =
     getRecommendedFoods(
       profile,
@@ -198,12 +172,6 @@ function createMeal(
   const nutrition =
     calculateMealNutrition(
       foods
-    );
-
-  const mealTargetCalories =
-    targets.calories *
-    getMealPercentage(
-      meal
     );
 
   /*
@@ -256,9 +224,20 @@ export function createDailyPlan(
   profile: UserProfile
 ): DailyPlan {
   const targets =
-    calculateNutritionTargets(
-      profile
-    );
+    calculateNutritionTarget({
+      age: profile.age,
+      gender: profile.gender,
+      weightKg: profile.weightKg,
+      heightCm: profile.heightCm,
+      activityLevel:
+        profile.activityLevel,
+      goal:
+        profile.goal === "lose"
+          ? "lose"
+          : profile.goal === "maintain"
+            ? "maintain"
+            : "gain",
+    });
 
   const mealTypes: MealType[] = [
     "breakfast",
@@ -266,7 +245,8 @@ export function createDailyPlan(
     "dinner",
     "snack",
   ];
-const meals =
+
+  const meals =
     mealTypes.map(
       (meal) =>
         createMeal(
@@ -274,8 +254,7 @@ const meals =
           meal
         )
     );
-
-  const totals =
+const totals =
     meals.reduce(
       (total, meal) => ({
         calories:
@@ -314,19 +293,19 @@ const meals =
         .split("T")[0],
 
     targetCalories:
-      targets.calories,
+      targets.targetCalories,
 
     targetProtein:
-      targets.protein,
+      targets.proteinGrams,
 
     targetCarbohydrates:
-      targets.carbohydrates,
+      targets.carbohydrateGrams,
 
     targetFat:
-      targets.fat,
+      targets.fatGrams,
 
     targetFiber:
-      targets.fiber,
+      targets.fiberMinGrams,
 
     meals,
 
