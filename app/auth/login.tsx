@@ -13,9 +13,11 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import ScreenContainer from "../../components/common/ScreenContainer";
-import { getUserAccount } from "../../storage/authStorage";
+import { useAuth } from "../../context/AuthContext";
 
 export default function LoginScreen() {
+  const { login } = useAuth();
+
   const [email, setEmail] =
     useState("");
 
@@ -47,27 +49,15 @@ export default function LoginScreen() {
     try {
       setLoading(true);
 
-      const account =
-        await getUserAccount();
+      const result = await login(
+        cleanEmail,
+        password
+      );
 
-      if (!account) {
+      if (!result.success) {
         setError(
-          "No account found. Please create an account first."
-        );
-        return;
-      }
-
-      const savedEmail =
-        account.email
-          .trim()
-          .toLowerCase();
-
-      if (
-        cleanEmail !== savedEmail ||
-        password !== account.password
-      ) {
-        setError(
-          "Incorrect email or password."
+          result.error ??
+            "Incorrect email or password."
         );
         return;
       }
@@ -163,11 +153,16 @@ export default function LoginScreen() {
 
           {/* Password */}
           <View style={styles.field}>
-            <View style={styles.passwordLabelRow}>
+            <View
+              style={
+                styles.passwordLabelRow
+              }
+            >
               <Text style={styles.label}>
                 Password
               </Text>
-<Pressable
+
+              <Pressable
                 onPress={() =>
                   router.push(
                     "/auth/forget-password"
@@ -183,8 +178,7 @@ export default function LoginScreen() {
                 </Text>
               </Pressable>
             </View>
-
-            <View style={styles.inputWrapper}>
+<View style={styles.inputWrapper}>
               <Ionicons
                 name="lock-closed-outline"
                 size={19}
@@ -361,7 +355,8 @@ const styles = StyleSheet.create({
 
   passwordLabelRow: {
     flexDirection: "row",
-justifyContent: "space-between",
+
+    justifyContent: "space-between",
 
     alignItems: "center",
 
@@ -394,8 +389,7 @@ justifyContent: "space-between",
     paddingHorizontal: 16,
 
     backgroundColor: "#11151D",
-
-    borderWidth: 1,
+borderWidth: 1,
 
     borderColor: "#272B33",
 
