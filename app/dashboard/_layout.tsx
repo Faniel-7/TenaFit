@@ -4,17 +4,12 @@ import {
   StyleSheet,
   Platform,
 } from "react-native";
-import {
-  Slot,
-  usePathname,
-} from "expo-router";
+import { Slot } from "expo-router";
 
 import Sidebar from "../../components/dashboard/Sidebar";
 import BottomNav from "../../components/dashboard/BottomNav";
 
 export default function DashboardLayout() {
-  const pathname = usePathname();
-
   const isMobileWeb =
     Platform.OS === "web" &&
     typeof window !== "undefined" &&
@@ -22,9 +17,7 @@ export default function DashboardLayout() {
 
   return (
     <View style={styles.container}>
-      {!isMobileWeb && (
-        <Sidebar />
-      )}
+      {!isMobileWeb && <Sidebar />}
 
       <View
         style={[
@@ -36,31 +29,27 @@ export default function DashboardLayout() {
         <Slot />
       </View>
 
-      {isMobileWeb && (
-        <BottomNav />
-      )}
+      {isMobileWeb && <BottomNav />}
     </View>
   );
 }
 
-const styles =
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      flexDirection: "row",
-      backgroundColor:
-        "#05070B",
-    },
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    flexDirection: "row",
+    backgroundColor: "#05070B",
+  },
 
-    content: {
-      flex: 1,
-      minWidth: 0,
-      backgroundColor:
-        "#05070B",
-    },
+  content: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 0,
+    backgroundColor: "#05070B",
+  },
 
-    mobileContent: {
-      width: "100%",
-      paddingBottom: 85,
-    },
-  });
+  mobileContent: {
+    width: "100%",
+    paddingBottom: 85,
+  },
+});
