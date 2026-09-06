@@ -19,107 +19,130 @@ import {
   calculateNutritionTarget,
 } from "./nutritionCalculator";
 
+import {
+  calculateMealTarget,
+} from "./mealTargets";
+
 export interface MealRecommendation {
   meal: MealType;
-
   foods: Food[];
 }
 
 /*
 =========================================================
-MEAL CALORIE DISTRIBUTION
+FOOD ROLE
 =========================================================
 */
 
-function getMealCaloriePercentage(
-  meal: MealType
-): number {
-  switch (meal) {
-    case "breakfast":
-      return 0.25;
+type FoodRole =
+  | "protein"
+  | "carbohydrate"
+  | "vegetable"
+  | "fruit"
+  | "fat"
+  | "dairy"
+  | "other";
 
-    case "lunch":
-      return 0.35;
+function getFoodRole(
+  food: Food
+): FoodRole {
+  switch (food.category) {
+    case "meat":
+    case "egg":
+    case "fish":
+    case "legume":
+      return "protein";
 
-    case "dinner":
-      return 0.30;
+    case "cereal":
+    case "root":
+      return "carbohydrate";
 
-    case "snack":
-      return 0.10;
+    case "vegetable":
+    case "soup":
+      return "vegetable";
+
+    case "fruit":
+      return "fruit";
+
+    case "nut":
+    case "oil":
+      return "fat";
+
+    case "dairy":
+      return "dairy";
 
     default:
-      return 0;
+      return "other";
   }
 }
 
 /*
 =========================================================
-FOOD CALORIE SCORE
+MEAL ROLE PRIORITY
 =========================================================
 */
 
-function getCalorieScore(
-  food: Food,
-  targetCalories: number
-): number {
-  if (targetCalories <= 0) {
-    return 0;
+function getPreferredRoles(
+  meal: MealType
+): FoodRole[] {
+  switch (meal) {
+    case "breakfast":
+      return [
+        "protein",
+        "carbohydrate",
+        "fruit",
+        "dairy",
+      ];
+
+    case "lunch":
+      return [
+        "protein",
+        "carbohydrate",
+        "vegetable",
+      ];
+
+    case "dinner":
+      return [
+        "protein",
+        "vegetable",
+        "carbohydrate",
+      ];
+
+    case "snack":
+      return [
+        "protein",
+        "fruit",
+        "dairy",
+        "fat",
+      ];
+
+    default:
+      return [
+        "protein",
+        "carbohydrate",
+      ];
   }
-
-  const difference =
-    Math.abs(
-      food.calories -
-        targetCalories
-    );
-
-  const percentageDifference =
-    difference /
-    targetCalories;
-
-  /*
-   * Closer calories = higher score.
-   *
-   * Maximum = 30 points.
-   */
-  return Math.max(
-    0,
-    30 -
-      percentageDifference * 30
-  );
 }
 
 /*
 =========================================================
-PROTEIN SCORE
+GOAL KEY
 =========================================================
 */
 
-function getProteinScore(
-  food: Food,
-  targetProtein: number
-): number {
-  if (targetProtein <= 0) {
-    return 0;
+function getGoalKey(
+  profile: UserProfile
+): keyof Food["suitableFor"] {
+  switch (profile.goal) {
+    case "lose":
+      return "weightLoss";
+
+    case "maintain":
+      return "maintenance";
+
+    case "gain":
+      return "weightGain";
   }
-
-  const difference =
-    Math.abs(
-      food.protein -
-        targetProtein
-    );
-
-  const percentageDifference =
-    difference /
-    targetProtein;
-
-  /*
-   * Maximum = 25 points.
-   */
-  return Math.max(
-    0,
-    25 -
-      percentageDifference * 25
-  );
 }
 
 /*
@@ -132,21 +155,229 @@ function getGoalScore(
   food: Food,
   profile: UserProfile
 ): number {
-  const goalKey:
-    keyof typeof food.suitableFor =
-    profile.goal === "lose"
-      ? "weightLoss"
-      : profile.goal === "maintain"
-        ? "maintenance"
-        : "weightGain";
+  const goalKey =
+    getGoalKey(profile);
 
+  return food.suitableFor[
+    goalKey
+  ]
+    ? 20
+    : 0;
+}
+
+/*
+=========================================================
+PREFERENCE SCORE
+=========================================================
+*/
+
+function getPreferenceScore(
+  food: Food,
+  preference: UserProfile["foodPreference"]
+): number {
   if (
-    food.suitableFor[goalKey]
+    preference === "local"
   ) {
-    return 20;
+    return food.cuisine ===
+      "local"
+      ? 15
+      : 0;
   }
 
-  return 0;
+  if (
+    preference === "other"
+  ) {
+    return food.cuisine ===
+      "other"
+      ? 15
+      : 0;
+  }
+
+  /*
+   * Mixed:
+   * both local and other foods are valid.
+   *
+   * Give local foods a small preference so
+   * Ethiopian foods remain well represented.
+   */
+  return food.cuisine ===
+    "local"
+    ? 12
+    : 10;
+}
+
+/*
+=========================================================
+PROTEIN SCORE
+=========================================================
+*/
+
+function getProteinScore(
+  food: Food,
+  mealProtein: number
+): number {
+  if (
+    mealProtein <= 0
+  ) {
+    return 0;
+  }
+
+  /*
+   * One food should contribute only part
+   * of the meal's protein requirement.
+   */
+  const desiredProtein =
+    mealProtein * 0.35;
+
+  const difference =
+    Math.abs(
+      food.protein -
+        desiredProtein
+    );
+
+  const normalizedDifference =
+    difference /
+    Math.max(
+      mealProtein,
+      1
+    );
+
+  return Math.max(
+    0,
+    25 -
+      normalizedDifference * 25
+  );
+}
+
+/*
+=========================================================
+CALORIE SCORE
+=========================================================
+*/
+function getCalorieScore(
+  food: Food,
+  mealCalories: number
+): number {
+  if (
+    mealCalories <= 0
+  ) {
+    return 0;
+  }
+
+  /*
+   * A single food is not expected to
+   * provide the whole meal's calories.
+   *
+   * We compare it against approximately
+   * 35% of the meal target.
+   */
+  const desiredCalories =
+    mealCalories * 0.35;
+
+  const difference =
+    Math.abs(
+      food.calories -
+        desiredCalories
+    );
+
+  const normalizedDifference =
+    difference /
+    Math.max(
+      mealCalories,
+      1
+    );
+
+  return Math.max(
+    0,
+    25 -
+      normalizedDifference * 25
+  );
+}
+
+/*
+=========================================================
+FIBER SCORE
+=========================================================
+*/
+
+function getFiberScore(
+  food: Food,
+  mealFiber: number,
+  profile: UserProfile
+): number {
+  if (
+    mealFiber <= 0
+  ) {
+    return 0;
+  }
+
+  const fiberRatio =
+    food.fiber /
+    Math.max(
+      mealFiber,
+      1
+    );
+
+  let score =
+    Math.min(
+      fiberRatio * 10,
+      10
+    );
+
+  /*
+   * Fiber receives additional importance
+   * for weight-loss recommendations.
+   */
+  if (
+    profile.goal === "lose"
+  ) {
+    score += Math.min(
+      fiberRatio * 5,
+      5
+    );
+  }
+
+  return score;
+}
+
+/*
+=========================================================
+ROLE SCORE
+=========================================================
+*/
+
+function getRoleScore(
+  food: Food,
+  meal: MealType
+): number {
+  const role =
+    getFoodRole(food);
+
+  const preferredRoles =
+    getPreferredRoles(meal);
+
+  const position =
+    preferredRoles.indexOf(
+      role
+    );
+
+  if (position === 0) {
+    return 12;
+  }
+
+  if (position === 1) {
+    return 10;
+  }
+
+  if (position === 2) {
+    return 8;
+  }
+
+  if (position >= 0) {
+    return 6;
+  }
+
+  return 2;
 }
 
 /*
@@ -161,50 +392,102 @@ function getTagScore(
 ): number {
   let score = 0;
 
+  const tags =
+    food.tags.map(
+      (tag) =>
+        tag.toLowerCase()
+    );
+
   /*
-   * Weight loss:
-   * favor higher fiber foods.
+   * Weight loss
    */
   if (
-    profile.goal ===
-      "lose" &&
-    food.tags.some(
-      (tag) =>
-        tag
-          .toLowerCase()
-          .includes("fiber")
-    )
+    profile.goal === "lose"
   ) {
-    score += 10;
+    if (
+      food.fiber >= 4
+    ) {
+      score += 5;
+    }
+
+    if (
+      tags.some(
+        (tag) =>
+          tag.includes("fiber")
+      )
+    ) {
+      score += 5;
+    }
+
+    if (
+      food.calories <= 150
+    ) {
+      score += 3;
+    }
   }
 
   /*
-   * Weight gain:
-   * favor energy-dense foods.
+   * Maintenance
    */
   if (
     profile.goal ===
-      "gain" &&
-    food.calories >= 200
+    "maintain"
   ) {
-    score += 10;
+    if (
+      food.protein >= 8
+    ) {
+      score += 4;
+    }
+
+    if (
+      food.fiber >= 3
+    ) {
+      score += 4;
+    }
   }
 
   /*
-   * High protein is useful for
-   * active users.
+   * Weight gain
    */
   if (
-    food.tags.some(
-      (tag) =>
-        tag
-          .toLowerCase()
-          .includes(
-            "protein"
+    profile.goal === "gain"
+  ) {
+    if (
+      food.calories >= 200
+    ) {
+      score += 7;
+    }
+
+    if (
+      food.protein >= 8
+    ) {
+      score += 5;
+    }
+
+    if (
+      tags.some(
+        (tag) =>
+          tag.includes(
+            "energy"
           )
+      )
+    ) {
+      score += 3;
+    }
+  }
+
+  /*
+   * Protein-related tags
+   */
+  if (
+    tags.some(
+      (tag) =>
+        tag.includes(
+          "protein"
+        )
     )
   ) {
-    score += 5;
+    score += 4;
   }
 
   return score;
@@ -212,115 +495,113 @@ function getTagScore(
 
 /*
 =========================================================
-PREFERENCE SCORE
+ACTIVITY SCORE
 =========================================================
 */
 
-function getPreferenceScore(
+function getActivityScore(
   food: Food,
-  preference: UserProfile["foodPreference"]
+  profile: UserProfile
 ): number {
-  /*
-   * LOCAL
-   *
-   * Local foods receive maximum score.
-   */
-  if (preference === "local") {
-    return food.cuisine === "local"
-      ? 15
-      : 0;
-  }
+  let score = 0;
 
-  /*
-   * OTHER
-   *
-   * International/other foods receive
-   * maximum score.
-   */
-  if (preference === "other") {
-    return food.cuisine === "other"
-      ? 15
-      : 0;
-  }
+  const highProtein =
+    food.protein >= 10;
 
-  /*
-   * MIXED
-   *
-   * Both are allowed.
-   *
-   * Other foods receive higher priority,
-   * according to the agreed recommendation
-   * behavior.
-   */
+  const highCalories =
+    food.calories >= 200;
+
   if (
-    food.cuisine === "other"
+    profile.activityLevel ===
+      "hard" &&
+    highProtein
   ) {
-    return 15;
+    score += 8;
   }
 
-  return 8;
+  if (
+    profile.activityLevel ===
+      "moderate" &&
+    highProtein
+  ) {
+    score += 5;
+  }
+
+  if (
+    profile.activityLevel ===
+      "light" &&
+    food.fiber >= 3
+  ) {
+    score += 3;
+  }
+
+  if (
+    profile.activityLevel ===
+      "sedentary" &&
+    !highCalories
+  ) {
+    score += 3;
+  }
+
+  return score;
 }
+
 /*
 =========================================================
-CALCULATE FOOD SCORE
+TOTAL FOOD SCORE
 =========================================================
 */
-
 function calculateFoodScore(
   food: Food,
   profile: UserProfile,
   meal: MealType
 ): number {
-  const targets =
+  const dailyTargets =
     calculateNutritionTarget({
       age: profile.age,
       gender: profile.gender,
-      weightKg: profile.weightKg,
-      heightCm: profile.heightCm,
+      weightKg:
+        profile.weightKg,
+      heightCm:
+        profile.heightCm,
       activityLevel:
         profile.activityLevel,
       goal: profile.goal,
     });
 
-  /*
-   * Estimate the calories for this
-   * particular meal.
-   */
-  const mealCalories =
-    targets.targetCalories *
-    getMealCaloriePercentage(
-      meal
-    );
-
-  /*
-   * Estimate protein for this meal.
-   */
-  const mealProtein =
-    targets.proteinGrams *
-    getMealCaloriePercentage(
+  const mealTarget =
+    calculateMealTarget(
+      dailyTargets,
       meal
     );
 
   const calorieScore =
     getCalorieScore(
       food,
-      mealCalories
+      mealTarget.calories
     );
 
   const proteinScore =
     getProteinScore(
       food,
-      mealProtein
+      mealTarget.proteinGrams
+    );
+
+  const fiberScore =
+    getFiberScore(
+      food,
+      mealTarget.fiberGrams,
+      profile
+    );
+
+  const roleScore =
+    getRoleScore(
+      food,
+      meal
     );
 
   const goalScore =
     getGoalScore(
-      food,
-      profile
-    );
-
-  const tagScore =
-    getTagScore(
       food,
       profile
     );
@@ -331,18 +612,33 @@ function calculateFoodScore(
       profile.foodPreference
     );
 
+  const tagScore =
+    getTagScore(
+      food,
+      profile
+    );
+
+  const activityScore =
+    getActivityScore(
+      food,
+      profile
+    );
+
   return (
     calorieScore +
     proteinScore +
+    fiberScore +
+    roleScore +
     goalScore +
+    preferenceScore +
     tagScore +
-    preferenceScore
+    activityScore
   );
 }
 
 /*
 =========================================================
-SORT FOODS
+RANK FOODS
 =========================================================
 */
 
@@ -354,7 +650,6 @@ function rankFoods(
   return [...foods]
     .map((food) => ({
       food,
-
       score:
         calculateFoodScore(
           food,
@@ -362,11 +657,41 @@ function rankFoods(
           meal
         ),
     }))
-    .sort(
-      (a, b) =>
-        b.score -
+    .sort((a, b) => {
+      /*
+       * Highest recommendation score first.
+       */
+      if (
+        b.score !==
         a.score
-    )
+      ) {
+        return (
+          b.score -
+          a.score
+        );
+      }
+
+      /*
+       * If scores are equal,
+       * prefer higher protein.
+       */
+      if (
+        b.food.protein !==
+        a.food.protein
+      ) {
+        return (
+          b.food.protein -
+          a.food.protein
+        );
+      }
+
+      /*
+       * Final stable tie-breaker.
+       */
+      return a.food.name.localeCompare(
+        b.food.name
+      );
+    })
     .map(
       (item) =>
         item.food
@@ -384,21 +709,27 @@ export function getRecommendedFoods(
   meal: MealType,
   limit = 5
 ): Food[] {
-  const userGoal =
-    profile.goal === "lose"
-      ? "weightLoss"
-      : profile.goal === "maintain"
-        ? "maintenance"
-        : "weightGain";
+  const goal =
+    getGoalKey(profile);
 
+  /*
+   * Step 1:
+   * Filter foods using the existing
+   * TenaFit filtering system.
+   */
   const filtered =
     filterFoods(
       foodDatabase,
       profile.foodPreference,
-      userGoal,
+      goal,
       meal
     );
 
+  /*
+   * Step 2:
+   * Rank the foods according to
+   * personalized nutrition.
+   */
   const ranked =
     rankFoods(
       filtered,
@@ -406,9 +737,16 @@ export function getRecommendedFoods(
       meal
     );
 
+  /*
+   * Step 3:
+   * Return only requested number.
+   */
   return ranked.slice(
     0,
-    limit
+    Math.max(
+      0,
+      limit
+    )
   );
 }
 
@@ -431,7 +769,6 @@ export function getDailyRecommendations(
   return meals.map(
     (meal) => ({
       meal,
-
       foods:
         getRecommendedFoods(
           profile,
