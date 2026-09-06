@@ -22,6 +22,11 @@ import ReviewCard from "../../components/auth/ReviewCard";
 import { saveUserProfile } from "../../storage/profileStorage";
 
 import {
+  getXp,
+  addXp,
+} from "../../storage/gamificationStorage";
+
+import {
   UserProfile,
   Gender,
   WeightGoal,
@@ -49,8 +54,6 @@ type ReviewParams = {
   daysPerWeek?: string | string[];
 
   minutesPerDay?: string | string[];
-
-
 
   foodPreference?: string | string[];
 };
@@ -103,7 +106,7 @@ export default function ReviewScreen() {
   const gender =
     getParam(params.gender);
 
-  const height =
+  const bodyHeight =
     getParam(params.height);
 
   const weight =
@@ -120,7 +123,6 @@ export default function ReviewScreen() {
 
   const minutesPerDay =
     getParam(params.minutesPerDay);
-
 
   const foodPreference =
     getParam(
@@ -145,8 +147,8 @@ export default function ReviewScreen() {
     formatGoal(goal);
 
   const displayHeight =
-    height
-      ? `${height} cm`
+    bodyHeight
+      ? `${bodyHeight} cm`
       : "Not provided";
 
   const displayWeight =
@@ -155,11 +157,13 @@ export default function ReviewScreen() {
       : "Not provided";
 
   const displayActivity =
-    formatActivity(activityLevel);
+    formatActivity(
+      activityLevel
+    );
 
   const displayCommitment =
     formatCommitment(
-      daysPerWeek, 
+      daysPerWeek,
       minutesPerDay
     );
 
@@ -182,7 +186,7 @@ export default function ReviewScreen() {
     age,
     gender,
 
-    height,
+    bodyHeight,
     weight,
 
     goal,
@@ -209,8 +213,7 @@ export default function ReviewScreen() {
         params: editParams,
       });
     };
-
-  const editPhysicalInfo =
+const editPhysicalInfo =
     () => {
       router.push({
         pathname:
@@ -226,7 +229,8 @@ export default function ReviewScreen() {
       params: editParams,
     });
   };
-const editActivity =
+
+  const editActivity =
     () => {
       router.push({
         pathname:
@@ -268,7 +272,7 @@ const editActivity =
       if (
         !age ||
         !gender ||
-        !height ||
+        !bodyHeight ||
         !weight ||
         !goal ||
         !activityLevel ||
@@ -281,11 +285,12 @@ const editActivity =
           {
             age,
             gender,
-            height,
+            bodyHeight,
             weight,
             goal,
             activityLevel,
             daysPerWeek,
+            minutesPerDay,
             foodPreference,
           }
         );
@@ -305,7 +310,7 @@ const editActivity =
             ),
 
           heightCm:
-            Number(height),
+            Number(bodyHeight),
 
           weightKg:
             Number(weight),
@@ -332,9 +337,44 @@ const editActivity =
             ),
         };
 
+        /*
+        =====================================================
+        SAVE PROFILE
+        =====================================================
+        */
+
         await saveUserProfile(
           profile
         );
+
+        /*
+        =====================================================
+        REAL XP REWARD
+        =====================================================
+
+        Completing onboarding gives the user
+        100 XP.
+
+        We check the stored XP first so the
+        onboarding reward cannot be repeatedly
+        claimed by simply returning to this screen.
+
+        This is persistent because addXp()
+        stores the XP in AsyncStorage.
+        */
+
+        const currentXp =
+          await getXp();
+
+        if (currentXp === 0) {
+          await addXp(100);
+        }
+
+        /*
+        =====================================================
+        GO TO HOME
+        =====================================================
+        */
 
         router.replace(
           "/home"
@@ -353,8 +393,6 @@ const editActivity =
   =========================================================
   REVIEW CARD HELPER
   =========================================================
-
-  IMPORTANT:
 
   Desktop:
   The ReviewCard is rendered directly.
@@ -381,8 +419,7 @@ const editActivity =
       </View>
     );
   };
-
-  return (
+return (
     <ScreenContainer
       scrollable={isWeb}
       wide={isWeb}
@@ -438,7 +475,8 @@ const editActivity =
         {/* =================================================
             STEP INDICATOR
         ================================================= */}
-<StepIndicator
+
+        <StepIndicator
           current={6}
           total={6}
         />
@@ -562,8 +600,7 @@ const editActivity =
           )}
 
           {/* COMMITMENT */}
-
-          {renderCard(
+{renderCard(
             <ReviewCard
               icon="calendar-outline"
               label="Commitment"
@@ -615,7 +652,8 @@ const editActivity =
               }
             }}
           />
-{isSaving && (
+
+          {isSaving && (
             <ActivityIndicator
               size="small"
               color="#FFC107"
@@ -759,8 +797,12 @@ function formatCommitment(
     Number(minutes);
 
   if (
-    !Number.isFinite(daysNumber) ||
-    !Number.isFinite(minutesNumber) ||
+    !Number.isFinite(
+      daysNumber
+    ) ||
+    !Number.isFinite(
+      minutesNumber
+    ) ||
     daysNumber <= 0 ||
     minutesNumber <= 0
   ) {
@@ -782,8 +824,7 @@ function formatFoodPreference(
   ) {
     case "local":
       return "Local Foods";
-
-    case "other":
+case "other":
       return "Other Foods";
 
     case "local_plus_other":
@@ -865,7 +906,8 @@ function normalizeActivityLevel(
   ) {
     return "sedentary";
   }
-if (
+
+  if (
     normalized ===
       "light" ||
     normalized ===
@@ -930,7 +972,6 @@ function normalizeFoodPreference(
 
   return "mixed";
 }
-
 
 /*
 ===========================================================
@@ -1030,8 +1071,7 @@ const styles =
         -0.5,
       marginTop: 2,
     },
-
-    subtitle: {
+subtitle: {
       color: "#9CA3AF",
       fontSize: 14,
       lineHeight: 20,
@@ -1043,10 +1083,6 @@ const styles =
     -------------------------------------------------------
     DESKTOP GRID
     -------------------------------------------------------
-
-    THIS IS THE ORIGINAL DESKTOP STRUCTURE.
-
-    We do not change its card widths.
     */
 
     grid: {
@@ -1066,10 +1102,6 @@ const styles =
     -------------------------------------------------------
     MOBILE GRID
     -------------------------------------------------------
-
-    Only applied to the web-mobile viewport.
-
-    The cards remain two columns.
     */
 
     mobileGrid: {
@@ -1079,15 +1111,11 @@ const styles =
       columnGap: 0,
       rowGap: 14,
     },
-/*
+
+    /*
     -------------------------------------------------------
     MOBILE CARD WIDTH
     -------------------------------------------------------
-
-    This wrapper exists ONLY on mobile.
-
-    At 412px this gives each card almost half
-    of the available width.
     */
 
     mobileCardWrapper: {
