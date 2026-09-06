@@ -17,7 +17,25 @@ export default function DashboardLayout() {
 
   return (
     <View style={styles.container}>
-      {!isMobileWeb && <Sidebar />}
+      {/* =====================================================
+          DESKTOP SIDEBAR
+
+          Sidebar has a fixed 245px width.
+          ===================================================== */}
+
+      {!isMobileWeb && (
+        <Sidebar />
+      )}
+
+      {/* =====================================================
+          PAGE CONTENT
+
+          minHeight: 0 is important here.
+
+          It allows the sidebar's own ScrollView to actually
+          receive the available height instead of expanding
+          beyond the viewport.
+          ===================================================== */}
 
       <View
         style={[
@@ -29,7 +47,13 @@ export default function DashboardLayout() {
         <Slot />
       </View>
 
-      {isMobileWeb && <BottomNav />}
+      {/* =====================================================
+          MOBILE BOTTOM NAV
+          ===================================================== */}
+
+      {isMobileWeb && (
+        <BottomNav />
+      )}
     </View>
   );
 }
@@ -37,19 +61,37 @@ export default function DashboardLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+
+    width: "100%",
+    height: "100%",
+
+    minHeight: 0,
+
     flexDirection: "row",
+
     backgroundColor: "#05070B",
+
+    overflow: "hidden",
   },
 
   content: {
     flex: 1,
+
+    width: 0,
     minWidth: 0,
     minHeight: 0,
+
+    height: "100%",
+
     backgroundColor: "#05070B",
+
+    overflow: "hidden",
   },
 
   mobileContent: {
     width: "100%",
+    height: "100%",
+
     paddingBottom: 85,
   },
 });
