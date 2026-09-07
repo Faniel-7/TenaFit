@@ -15,61 +15,44 @@ import {
   calculateNutritionTarget,
 } from "./nutritionCalculator";
 
-/*
-=========================================================
-TYPES
-=========================================================
-*/
+import {
+  calculatePortionNutrition,
+  PortionNutrition,
+} from "./portionCalculator";
+
+export interface PlannedFood {
+  food: Food;
+  grams: number;
+  nutrition: PortionNutrition;
+}
 
 export interface PlannedMeal {
   meal: MealType;
-
   title: string;
-
   foods: Food[];
-
+  portions: PlannedFood[];
   calories: number;
-
   protein: number;
-
   carbohydrates: number;
-
   fat: number;
-
   fiber: number;
+  targetCalories: number;
 }
 
 export interface DailyPlan {
   date: string;
-
   targetCalories: number;
-
   targetProtein: number;
-
   targetCarbohydrates: number;
-
   targetFat: number;
-
   targetFiber: number;
-
   meals: PlannedMeal[];
-
   totalCalories: number;
-
   totalProtein: number;
-
   totalCarbohydrates: number;
-
   totalFat: number;
-
   totalFiber: number;
 }
-
-/*
-=========================================================
-MEAL NAMES
-=========================================================
-*/
 
 function getMealTitle(
   meal: MealType
@@ -77,59 +60,65 @@ function getMealTitle(
   switch (meal) {
     case "breakfast":
       return "Breakfast";
-
     case "lunch":
       return "Lunch";
-
     case "dinner":
       return "Dinner";
-
     case "snack":
       return "Snack";
-
     default:
       return "Meal";
   }
 }
 
-/*
-=========================================================
-CALCULATE MEAL NUTRITION
-=========================================================
-*/
+function getMealCaloriePercentage(
+  meal: MealType
+): number {
+  switch (meal) {
+    case "breakfast":
+      return 0.25;
+    case "lunch":
+      return 0.35;
+    case "dinner":
+      return 0.3;
+    case "snack":
+      return 0.1;
+    default:
+      return 0;
+  }
+}
 
 function calculateMealNutrition(
-  foods: Food[]
-): {
-  calories: number;
-  protein: number;
-  carbohydrates: number;
-  fat: number;
-  fiber: number;
-} {
-  return foods.reduce(
-    (totals, food) => ({
+  portions: PlannedFood[]
+): PortionNutrition {
+  return portions.reduce(
+    (total, portion) => ({
+      grams:
+        total.grams +
+        portion.nutrition.grams,
+
       calories:
-        totals.calories +
-        food.calories,
+        total.calories +
+        portion.nutrition.calories,
 
       protein:
-        totals.protein +
-        food.protein,
+        total.protein +
+        portion.nutrition.protein,
 
       carbohydrates:
-        totals.carbohydrates +
-        food.carbohydrates,
+        total.carbohydrates +
+        portion.nutrition.carbohydrates,
 
       fat:
-        totals.fat +
-        food.fat,
+        total.fat +
+        portion.nutrition.fat,
 
       fiber:
-        totals.fiber +
-        food.fiber,
+        total.fiber +
+        portion.nutrition.fiber,
     }),
     {
+      grams: 0,
       calories: 0,
       protein: 0,
       carbohydrates: 0,
@@ -139,86 +128,186 @@ function calculateMealNutrition(
   );
 }
 
-/*
-=========================================================
-CREATE MEAL
-=========================================================
-*/
+function getInitialPortion(
+  food: Food,
+  targetCalories: number
+): number {
+  if (food.calories <= 0) {
+    return 0;
+  }
 
-function createMeal(
+  const calculated =
+    (targetCalories /
+      food.calories) *
+    100;
+
+  return Math.max(
+    20,
+    Math.min(300, calculated)
+  );
+}
+
+function createPortionedMeal(
   profile: UserProfile,
-  meal: MealType
+  meal: MealType,
+  targetCalories: number
 ): PlannedMeal {
   const recommendedFoods =
     getRecommendedFoods(
       profile,
       meal,
-      3
+      5
     );
 
-  /*
-   * At this stage we use the top
-   * three compatible foods.
-   *
-   * Later we will upgrade this to
-   * portion-aware meal combinations.
-   */
-  const foods =
-    recommendedFoods.slice(
+  const usableFoods =
+    recommendedFoods.filter(
+      (food) =>
+        food.calories > 0
+    );
+
+  if (
+    usableFoods.length === 0
+  ) {
+    return {
+      meal,
+      title: getMealTitle(meal),
+      foods: [],
+      portions: [],
+      calories: 0,
+      protein: 0,
+      carbohydrates: 0,
+      fat: 0,
+      fiber: 0,
+      targetCalories,
+    };
+  }
+
+  const selectedFoods =
+    usableFoods.slice(
       0,
-      3
+      Math.min(3, usableFoods.length)
     );
 
-  const nutrition =
+  const baseTarget =
+    targetCalories /
+    selectedFoods.length;
+
+  const portions =
+    selectedFoods.map(
+      (food) => {
+        const grams =
+          getInitialPortion(
+            food,
+            baseTarget
+          );
+
+        return {
+          food,
+          grams: Math.round(
+            grams / 5
+          ) * 5,
+          nutrition:
+            calculatePortionNutrition(
+              food,
+              Math.round(
+                grams / 5
+              ) * 5
+            ),
+        };
+      }
+    );
+
+  let nutrition =
     calculateMealNutrition(
-      foods
+      portions
     );
 
-  /*
-   * If the food database is empty
-   * for this meal, we still return
-   * a valid meal object.
-   */
-  return {
-    meal,
+  if (
+    nutrition.calories > 0
+  ) {
+    const adjustment =
+      targetCalories /
+      nutrition.calories;
+const adjustedPortions =
+      portions.map(
+        (portion) => {
+          const grams = Math.max(
+            20,
+            Math.min(
+              400,
+              Math.round(
+                (portion.grams *
+                  adjustment) /
+                  5
+              ) * 5
+            )
+          );
 
-    title:
-      getMealTitle(meal),
+          return {
+            ...portion,
+            grams,
+            nutrition:
+              calculatePortionNutrition(
+                portion.food,
+                grams
+              ),
+          };
+        }
+      );
 
-    foods,
+    nutrition =
+      calculateMealNutrition(
+        adjustedPortions
+      );
 
-    calories:
-      Math.round(
+    return {
+      meal,
+      title: getMealTitle(meal),
+      foods: selectedFoods,
+      portions: adjustedPortions,
+      calories: Math.round(
         nutrition.calories
       ),
-
-    protein:
-      Math.round(
+      protein: Math.round(
         nutrition.protein
       ),
-
-    carbohydrates:
-      Math.round(
-        nutrition.carbohydrates
-      ),
-
-    fat:
-      Math.round(
+      carbohydrates:
+        Math.round(
+          nutrition.carbohydrates
+        ),
+      fat: Math.round(
         nutrition.fat
       ),
-
-    fiber:
-      Math.round(
+      fiber: Math.round(
         nutrition.fiber
       ),
+      targetCalories,
+    };
+  }
+
+  return {
+    meal,
+    title: getMealTitle(meal),
+    foods: selectedFoods,
+    portions,
+    calories: Math.round(
+      nutrition.calories
+    ),
+    protein: Math.round(
+      nutrition.protein
+    ),
+    carbohydrates: Math.round(
+      nutrition.carbohydrates
+    ),
+    fat: Math.round(
+      nutrition.fat
+    ),
+    fiber: Math.round(
+      nutrition.fiber
+    ),
+    targetCalories,
   };
 }
-
-/*
-=========================================================
-CREATE DAILY PLAN
-=========================================================
-*/
 
 export function createDailyPlan(
   profile: UserProfile
@@ -248,13 +337,24 @@ export function createDailyPlan(
 
   const meals =
     mealTypes.map(
-      (meal) =>
-        createMeal(
+      (meal) => {
+        const targetCalories =
+          Math.round(
+            targets.targetCalories *
+              getMealCaloriePercentage(
+                meal
+              )
+          );
+
+        return createPortionedMeal(
           profile,
-          meal
-        )
+          meal,
+          targetCalories
+        );
+      }
     );
-const totals =
+
+  const totals =
     meals.reduce(
       (total, meal) => ({
         calories:
