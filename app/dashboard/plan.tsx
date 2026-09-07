@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -8,18 +8,115 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { getUserProfile } from "../../storage/profileStorage";
+import { UserProfile } from "../../types/userProfile";
+import {
+  createDailyPlan,
+  DailyPlan,
+  PlannedMeal,
+} from "../../logic/mealPlanner";
+
+const mealIcons: Record<
+  PlannedMeal["meal"],
+  keyof typeof Ionicons.glyphMap
+> = {
+  breakfast: "sunny-outline",
+  lunch: "restaurant-outline",
+  dinner: "moon-outline",
+  snack: "nutrition-outline",
+};
 
 export default function PlanScreen() {
+  const [profile, setProfile] =
+    useState<UserProfile | null>(null);
+
+  const [plan, setPlan] =
+    useState<DailyPlan | null>(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadPlan = async () => {
+      try {
+        const savedProfile =
+          await getUserProfile();
+
+        if (!mounted) {
+          return;
+        }
+
+        if (!savedProfile) {
+          router.replace(
+            "/onboarding/personal-info"
+          );
+          return;
+        }
+
+        setProfile(savedProfile);
+
+        const dailyPlan =
+          createDailyPlan(
+            savedProfile
+          );
+
+        setPlan(dailyPlan);
+      } catch (error) {
+        console.error(
+          "Failed to create daily plan:",
+          error
+        );
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadPlan();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  if (loading || !profile || !plan) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Ionicons
+          name="nutrition-outline"
+          size={38}
+          color="#FFC107"
+        />
+
+        <Text style={styles.loadingTitle}>
+          Building your plan
+        </Text>
+
+        <Text style={styles.loadingText}>
+          Creating recommendations from your profile.
+        </Text>
+      </View>
+    );
+  }
+
+  const goalText =
+    profile.goal === "lose"
+      ? "weight loss"
+      : profile.goal === "gain"
+        ? "weight gain"
+        : "maintenance";
+
   return (
     <View style={styles.container}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
-        {/* HEADER */}
-
         <View style={styles.header}>
-          <View>
+          <View style={styles.headerText}>
             <Text style={styles.eyebrow}>
               TODAY'S PLAN
             </Text>
@@ -29,7 +126,7 @@ export default function PlanScreen() {
             </Text>
 
             <Text style={styles.subtitle}>
-              Your personalized plan for today.
+              Personalized for your {goalText} goal.
             </Text>
           </View>
 
@@ -46,8 +143,6 @@ export default function PlanScreen() {
           </View>
         </View>
 
-        {/* DAILY TARGET */}
-
         <View style={styles.targetCard}>
           <View style={styles.targetIcon}>
             <Ionicons
@@ -59,57 +154,79 @@ export default function PlanScreen() {
 
           <View style={styles.targetInfo}>
             <Text style={styles.cardLabel}>
-              DAILY TARGET
+              DAILY CALORIE TARGET
             </Text>
 
             <Text style={styles.calories}>
-              Personalized
+              {plan.targetCalories} kcal
             </Text>
 
             <Text style={styles.targetDescription}>
-              Your calorie and nutrition targets
-              will appear here after the nutrition
-              engine is connected.
+              Your target is calculated from your age,
+              body measurements, activity level and goal.
             </Text>
           </View>
         </View>
 
-        {/* MEALS */}
+        <View style={styles.macroGrid}>
+          <MacroCard
+            icon="fitness-outline"
+            label="Protein"
+            value={`${plan.targetProtein}g`}
+          />
+
+          <MacroCard
+            icon="leaf-outline"
+            label="Carbs"
+            value={`${plan.targetCarbohydrates}g`}
+          />
+
+          <MacroCard
+            icon="water-outline"
+            label="Fat"
+            value={`${plan.targetFat}g`}
+          />
+
+          <MacroCard
+            icon="nutrition-outline"
+            label="Fiber"
+            value={`${plan.targetFiber}g`}
+          />
+        </View>
 
         <SectionHeader
-          title="Meals"
-          subtitle="Your meals for today"
+          title="Recommended Meals"
+          subtitle="Selected from your food preferences and goal."
         />
 
-        <PlanItem
-          icon="sunny-outline"
-          title="Breakfast"
-          description="Your recommended breakfast"
-          status="Not planned"
-        />
+        {plan.meals.map((meal) => (
+          <MealRecommendationCard
+            key={meal.meal}
+            meal={meal}
+          />
+        ))}
 
-        <PlanItem
-          icon="restaurant-outline"
-          title="Lunch"
-          description="Your recommended lunch"
-          status="Not planned"
-        />
+        <View style={styles.dailySummary}>
+          <View>
+            <Text style={styles.summaryLabel}>
+              PLAN TOTAL
+            </Text>
 
-        <PlanItem
-          icon="moon-outline"
-          title="Dinner"
-          description="Your recommended dinner"
-          status="Not planned"
-        />
+            <Text style={styles.summaryTitle}>
+              {plan.totalCalories} kcal
+            </Text>
+          </View>
 
-        <PlanItem
-          icon="nutrition-outline"
-          title="Snacks"
-          description="Healthy snack recommendations"
-          status="Not planned"
-        />
+          <View style={styles.summaryRight}>
+            <Text style={styles.summaryTarget}>
+              Target
+            </Text>
 
-        {/* WORKOUT */}
+            <Text style={styles.summaryTargetValue}>
+              {plan.targetCalories} kcal
+            </Text>
+          </View>
+        </View>
 
         <SectionHeader
           title="Workout"
@@ -131,9 +248,8 @@ export default function PlanScreen() {
             </Text>
 
             <Text style={styles.workoutDescription}>
-              Your workout plan will be generated
-              from your activity level and weekly
-              commitment.
+              Workout recommendations will use your
+              activity level and weekly commitment.
             </Text>
           </View>
 
@@ -144,8 +260,6 @@ export default function PlanScreen() {
           />
         </View>
 
-        {/* DAILY CHECKLIST */}
-
         <SectionHeader
           title="Daily Checklist"
           subtitle="Stay on track today"
@@ -153,7 +267,7 @@ export default function PlanScreen() {
 
         <ChecklistItem
           icon="restaurant-outline"
-          title="Complete your meals"
+          title="Complete your recommended meals"
         />
 
         <ChecklistItem
@@ -171,8 +285,7 @@ export default function PlanScreen() {
           title="Stay within your daily targets"
         />
 
-        {/* BACK */}
-<Pressable
+        <Pressable
           style={styles.backButton}
           onPress={() =>
             router.replace("/home")
@@ -189,6 +302,34 @@ export default function PlanScreen() {
           </Text>
         </Pressable>
       </ScrollView>
+    </View>
+  );
+}
+
+function MacroCard({
+  icon,
+  label,
+  value,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: string;
+}) {
+  return (
+    <View style={styles.macroCard}>
+      <Ionicons
+        name={icon}
+        size={19}
+        color="#FFC107"
+      />
+
+      <Text style={styles.macroValue}>
+        {value}
+      </Text>
+
+      <Text style={styles.macroLabel}>
+        {label}
+      </Text>
     </View>
   );
 }
@@ -212,40 +353,100 @@ function SectionHeader({
     </View>
   );
 }
-
-function PlanItem({
-  icon,
-  title,
-  description,
-  status,
+function MealRecommendationCard({
+  meal,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  description: string;
-  status: string;
+  meal: PlannedMeal;
 }) {
   return (
-    <View style={styles.planItem}>
-      <View style={styles.planIcon}>
-        <Ionicons
-          name={icon}
-          size={23}
-          color="#FFC107"
+    <View style={styles.mealCard}>
+      <View style={styles.mealHeader}>
+        <View style={styles.mealIcon}>
+          <Ionicons
+            name={mealIcons[meal.meal]}
+            size={23}
+            color="#FFC107"
+          />
+        </View>
+
+        <View style={styles.mealInfo}>
+          <Text style={styles.mealTitle}>
+            {meal.title}
+          </Text>
+
+          <Text style={styles.mealCalories}>
+            {meal.calories} kcal
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.foodList}>
+        {meal.foods.map((food) => (
+          <View
+            key={food.id}
+            style={styles.foodItem}
+          >
+            <View style={styles.foodDot} />
+
+            <View style={styles.foodInfo}>
+              <Text style={styles.foodName}>
+                {food.nameEnglish}
+              </Text>
+
+              <Text style={styles.foodDetails}>
+                {food.calories} kcal · {food.protein}g protein
+              </Text>
+            </View>
+          </View>
+        ))}
+
+        {meal.foods.length === 0 && (
+          <Text style={styles.noFoodText}>
+            No suitable foods found for this meal.
+          </Text>
+        )}
+      </View>
+
+      <View style={styles.mealMacros}>
+        <MacroValue
+          label="Protein"
+          value={`${meal.protein}g`}
+        />
+
+        <MacroValue
+          label="Carbs"
+          value={`${meal.carbohydrates}g`}
+        />
+
+        <MacroValue
+          label="Fat"
+          value={`${meal.fat}g`}
+        />
+
+        <MacroValue
+          label="Fiber"
+          value={`${meal.fiber}g`}
         />
       </View>
+    </View>
+  );
+}
 
-      <View style={styles.planInfo}>
-        <Text style={styles.planTitle}>
-          {title}
-        </Text>
+function MacroValue({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <View style={styles.mealMacro}>
+      <Text style={styles.mealMacroValue}>
+        {value}
+      </Text>
 
-        <Text style={styles.planDescription}>
-          {description}
-        </Text>
-      </View>
-
-      <Text style={styles.planStatus}>
-        {status}
+      <Text style={styles.mealMacroLabel}>
+        {label}
       </Text>
     </View>
   );
@@ -281,6 +482,28 @@ const styles = StyleSheet.create({
     backgroundColor: "#05070B",
   },
 
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: "#05070B",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 30,
+  },
+
+  loadingTitle: {
+    color: "#FFFFFF",
+    fontSize: 19,
+    fontWeight: "900",
+    marginTop: 15,
+  },
+
+  loadingText: {
+    color: "#737B89",
+    fontSize: 12,
+    marginTop: 6,
+    textAlign: "center",
+  },
+
   content: {
     padding: 28,
     paddingBottom: 50,
@@ -294,6 +517,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: 28,
+  },
+
+  headerText: {
+    flex: 1,
   },
 
   eyebrow: {
@@ -326,6 +553,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 13,
     paddingVertical: 10,
+    marginLeft: 15,
   },
 
   dateText: {
@@ -341,10 +569,9 @@ const styles = StyleSheet.create({
     borderColor: "#2A2F3A",
     borderRadius: 18,
     padding: 20,
-    marginBottom: 30,
+    marginBottom: 15,
   },
-
-  targetIcon: {
+targetIcon: {
     width: 52,
     height: 52,
     borderRadius: 16,
@@ -367,7 +594,7 @@ const styles = StyleSheet.create({
 
   calories: {
     color: "#FFFFFF",
-    fontSize: 20,
+    fontSize: 23,
     fontWeight: "900",
     marginTop: 3,
   },
@@ -377,6 +604,36 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     marginTop: 5,
+  },
+
+  macroGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 28,
+  },
+
+  macroCard: {
+    flex: 1,
+    minWidth: 130,
+    backgroundColor: "#10141B",
+    borderWidth: 1,
+    borderColor: "#242A34",
+    borderRadius: 14,
+    padding: 14,
+  },
+
+  macroValue: {
+    color: "#FFFFFF",
+    fontSize: 17,
+    fontWeight: "900",
+    marginTop: 8,
+  },
+
+  macroLabel: {
+    color: "#737B89",
+    fontSize: 10,
+    marginTop: 3,
   },
 
   sectionHeader: {
@@ -396,48 +653,152 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
 
-  planItem: {
-    minHeight: 72,
-    flexDirection: "row",
-    alignItems: "center",
+  mealCard: {
     backgroundColor: "#10141B",
     borderWidth: 1,
     borderColor: "#242A34",
-    borderRadius: 14,
-    paddingHorizontal: 15,
-    marginBottom: 9,
+    borderRadius: 17,
+    padding: 16,
+    marginBottom: 11,
   },
 
-  planIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
+  mealHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  mealIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 13,
     backgroundColor: "#1C1A14",
     alignItems: "center",
     justifyContent: "center",
   },
-planInfo: {
+
+  mealInfo: {
     flex: 1,
     marginLeft: 13,
   },
 
-  planTitle: {
+  mealTitle: {
     color: "#FFFFFF",
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+
+  mealCalories: {
+    color: "#FFC107",
+    fontSize: 11,
+    fontWeight: "800",
+    marginTop: 4,
+  },
+
+  foodList: {
+    marginTop: 15,
+    paddingTop: 13,
+    borderTopWidth: 1,
+    borderTopColor: "#242A34",
+  },
+
+  foodItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+
+  foodDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#FFC107",
+  },
+
+  foodInfo: {
+    flex: 1,
+    marginLeft: 10,
+  },
+
+  foodName: {
+    color: "#D5D8DE",
+    fontSize: 12,
     fontWeight: "800",
   },
 
-  planDescription: {
+  foodDetails: {
     color: "#737B89",
-    fontSize: 11,
+    fontSize: 10,
     marginTop: 3,
   },
 
-  planStatus: {
+  noFoodText: {
+    color: "#737B89",
+    fontSize: 11,
+  },
+
+  mealMacros: {
+    flexDirection: "row",
+    gap: 15,
+    paddingTop: 10,
+  },
+
+  mealMacro: {
+    flex: 1,
+  },
+
+  mealMacroValue: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+
+  mealMacroLabel: {
+    color: "#737B89",
+    fontSize: 9,
+    marginTop: 3,
+  },
+
+  dailySummary: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#171A21",
+    borderWidth: 1,
+    borderColor: "#303540",
+    borderRadius: 17,
+    padding: 18,
+    marginTop: 8,
+    marginBottom: 27,
+  },
+
+  summaryLabel: {
+    color: "#737B89",
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+
+  summaryTitle: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "900",
+    marginTop: 4,
+  },
+
+  summaryRight: {
+    alignItems: "flex-end",
+  },
+
+  summaryTarget: {
     color: "#737B89",
     fontSize: 10,
-    fontWeight: "700",
-    marginLeft: 8,
+  },
+
+  summaryTargetValue: {
+    color: "#FFC107",
+    fontSize: 13,
+    fontWeight: "900",
+    marginTop: 3,
   },
 
   workoutCard: {
@@ -471,8 +832,7 @@ planInfo: {
     fontSize: 14,
     fontWeight: "800",
   },
-
-  workoutDescription: {
+workoutDescription: {
     color: "#737B89",
     fontSize: 11,
     lineHeight: 17,
