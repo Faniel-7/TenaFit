@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -10,10 +10,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, usePathname } from "expo-router";
 
 import { useAuth } from "../../context/AuthContext";
-import {
-  getGamificationData,
-  GamificationData,
-} from "../../storage/gamificationStorage";
+
+type SidebarProps = {
+  fullName?: string;
+};
 
 type SidebarRoute =
   | "/home"
@@ -25,39 +25,14 @@ type SidebarRoute =
   | "/dashboard/reports"
   | "/dashboard/settings";
 
-export default function Sidebar() {
+export default function Sidebar({
+  fullName,
+}: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
 
-  const [gamification, setGamification] =
-    useState<GamificationData | null>(null);
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadGamification() {
-      try {
-        const data = await getGamificationData();
-
-        if (mounted) {
-          setGamification(data);
-        }
-      } catch (error) {
-        console.error(
-          "Failed to load gamification data:",
-          error
-        );
-      }
-    }
-
-    loadGamification();
-
-    return () => {
-      mounted = false;
-    };
-  }, [pathname]);
-
   const displayName =
+    fullName?.trim() ||
     user?.fullName?.trim() ||
     "Your Profile";
 
@@ -76,25 +51,12 @@ export default function Sidebar() {
     return pathname === route;
   };
 
-  const xp = gamification?.xp ?? 0;
-  const level = gamification?.level ?? 1;
-  const xpForNextLevel =
-    gamification?.xpForNextLevel ?? 500;
-  const currentLevelXp =
-    gamification?.currentLevelXp ?? 0;
-
-  const xpProgress =
-    gamification?.progress ??
-    Math.min(
-      currentLevelXp / xpForNextLevel,
-      1
-    );
-
   return (
     <View style={styles.sidebar}>
+
       {/* =====================================================
           LOGO
-          ===================================================== */}
+      ====================================================== */}
 
       <View style={styles.sidebarLogo}>
         <Ionicons
@@ -112,132 +74,141 @@ export default function Sidebar() {
       </View>
 
       {/* =====================================================
-          NAVIGATION
+          NAVIGATION VIEWPORT
 
-          ONLY THIS PART SCROLLS.
+          IMPORTANT:
+          This View is the clipping boundary.
 
-          The Premium card and user section are OUTSIDE
-          this ScrollView, so they can never cover a menu item.
-          ===================================================== */}
+          Nothing inside the navigation ScrollView is allowed
+          to visually escape into the Premium/Profile area.
+      ====================================================== */}
 
-      <ScrollView
-        style={styles.navigationScroll}
-        contentContainerStyle={
-          styles.sidebarNavigation
-        }
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-      >
-        <SidebarItem
-          icon="home"
-          label="Home"
-          active={isActive("/home")}
-          onPress={() =>
-            navigate("/home")
+      <View style={styles.navigationViewport}>
+
+        <ScrollView
+          style={styles.navigationScroll}
+          contentContainerStyle={
+            styles.sidebarNavigation
           }
-        />
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
 
-        <SidebarItem
-          icon="calendar-outline"
-          label="Plan"
-          active={isActive(
-            "/dashboard/plan"
-          )}
-          onPress={() =>
-            navigate(
+          <SidebarItem
+            icon="home"
+            label="Home"
+            active={isActive("/home")}
+            onPress={() =>
+              navigate("/home")
+            }
+          />
+
+          <SidebarItem
+            icon="calendar-outline"
+            label="Plan"
+            active={isActive(
               "/dashboard/plan"
-            )
-          }
-        />
+            )}
+            onPress={() =>
+              navigate(
+                "/dashboard/plan"
+              )
+            }
+          />
 
-        <SidebarItem
-          icon="bar-chart-outline"
-          label="Progress"
-          active={isActive(
-            "/dashboard/progress"
-          )}
-          onPress={() =>
-            navigate(
+          <SidebarItem
+            icon="bar-chart-outline"
+            label="Progress"
+            active={isActive(
               "/dashboard/progress"
-            )
-          }
-        />
+            )}
+            onPress={() =>
+              navigate(
+                "/dashboard/progress"
+              )
+            }
+          />
 
-        <SidebarItem
-          icon="restaurant-outline"
-          label="Meals"
-          active={isActive(
-            "/dashboard/meals"
-          )}
-          onPress={() =>
-            navigate(
+          <SidebarItem
+            icon="restaurant-outline"
+            label="Meals"
+            active={isActive(
               "/dashboard/meals"
-            )
-          }
-        />
-<SidebarItem
-          icon="barbell-outline"
-          label="Workouts"
-          active={isActive(
-            "/dashboard/workouts"
-          )}
-          onPress={() =>
-            navigate(
+            )}
+            onPress={() =>
+              navigate(
+                "/dashboard/meals"
+              )
+            }
+          />
+
+          <SidebarItem
+            icon="barbell-outline"
+            label="Workouts"
+            active={isActive(
               "/dashboard/workouts"
-            )
-          }
-        />
+            )}
+            onPress={() =>
+              navigate(
+                "/dashboard/workouts"
+              )
+            }
+          />
 
-        <SidebarItem
-          icon="water-outline"
-          label="Water"
-          active={isActive(
-            "/dashboard/water"
-          )}
-          onPress={() =>
-            navigate(
+          <SidebarItem
+            icon="water-outline"
+            label="Water"
+            active={isActive(
               "/dashboard/water"
-            )
-          }
-        />
-
-        <SidebarItem
-          icon="document-text-outline"
-          label="Reports"
-          active={isActive(
-            "/dashboard/reports"
-          )}
-          onPress={() =>
-            navigate(
+            )}
+            onPress={() =>
+              navigate(
+                "/dashboard/water"
+              )
+            }
+          />
+<SidebarItem
+            icon="document-text-outline"
+            label="Reports"
+            active={isActive(
               "/dashboard/reports"
-            )
-          }
-        />
+            )}
+            onPress={() =>
+              navigate(
+                "/dashboard/reports"
+              )
+            }
+          />
 
-        <SidebarItem
-          icon="settings-outline"
-          label="Settings"
-          active={isActive(
-            "/dashboard/settings"
-          )}
-          onPress={() =>
-            navigate(
+          <SidebarItem
+            icon="settings-outline"
+            label="Settings"
+            active={isActive(
               "/dashboard/settings"
-            )
-          }
-        />
-      </ScrollView>
+            )}
+            onPress={() =>
+              navigate(
+                "/dashboard/settings"
+              )
+            }
+          />
+
+        </ScrollView>
+
+      </View>
 
       {/* =====================================================
-          FIXED BOTTOM AREA
+          BOTTOM AREA
 
-          This never participates in navigation scrolling.
-          ===================================================== */}
+          This is completely outside the navigation viewport.
+      ====================================================== */}
 
       <View style={styles.sidebarBottom}>
+
         {/* PREMIUM */}
 
         <View style={styles.premiumCard}>
+
           <Ionicons
             name="diamond"
             size={25}
@@ -260,13 +231,17 @@ export default function Sidebar() {
               Upgrade Now
             </Text>
           </Pressable>
+
         </View>
 
-        {/* USER + XP */}
+        {/* USER */}
 
         <View style={styles.sidebarUser}>
+
           <View
-            style={styles.sidebarUserAvatar}
+            style={
+              styles.sidebarUserAvatar
+            }
           >
             <Ionicons
               name="person"
@@ -278,15 +253,22 @@ export default function Sidebar() {
           <View
             style={styles.sidebarUserInfo}
           >
+
             <Text
-              style={styles.sidebarUserName}
+              style={
+                styles.sidebarUserName
+              }
               numberOfLines={1}
             >
               {displayName}
             </Text>
 
-            <Text style={styles.sidebarLevel}>
-              Level {level}
+            <Text
+              style={
+                styles.sidebarLevel
+              }
+            >
+              Level 12
             </Text>
 
             <View style={styles.xpTrack}>
@@ -294,19 +276,22 @@ export default function Sidebar() {
                 style={[
                   styles.xpFill,
                   {
-                    width: `${xpProgress * 100}%`,
+                    width: "57%",
                   },
                 ]}
               />
             </View>
 
             <Text style={styles.xpText}>
-              {xp.toLocaleString()} /{" "}
-              {xpForNextLevel.toLocaleString()} XP
+              2,850 / 5,000 XP
             </Text>
+
           </View>
+
         </View>
+
       </View>
+
     </View>
   );
 }
@@ -325,10 +310,12 @@ function SidebarItem({
   return (
     <Pressable
       onPress={onPress}
-      style={[
+      style={({ pressed }) => [
         styles.sidebarItem,
         active &&
           styles.sidebarItemActive,
+        pressed &&
+          styles.sidebarItemPressed,
       ]}
     >
       <Ionicons
@@ -355,59 +342,40 @@ function SidebarItem({
 }
 
 const styles = StyleSheet.create({
-  /*
-  =========================================================
-  SIDEBAR
 
-  IMPORTANT:
-  No flex: 1 here.
+  /* =========================================================
+     SIDEBAR
+  ========================================================== */
 
-  The sidebar must remain exactly 245px wide.
-  =========================================================
-  */
-sidebar: {
+  sidebar: {
     width: 245,
     minWidth: 245,
-    alignSelf: "stretch",
-
-    flexDirection: "column",
-
+    height: "100%",
     backgroundColor: "#080A0F",
-
     borderRightWidth: 1,
     borderRightColor: "#252A34",
-
     paddingHorizontal: 20,
     paddingTop: 27,
     paddingBottom: 20,
-
     overflow: "hidden",
   },
 
-  /*
-  =========================================================
-  LOGO
-  =========================================================
-  */
-
-  sidebarLogo: {
+  /* =========================================================
+     LOGO
+  ========================================================== */
+sidebarLogo: {
     flexDirection: "row",
     alignItems: "center",
-
     marginBottom: 35,
     paddingHorizontal: 5,
-
     flexShrink: 0,
   },
 
   sidebarLogoText: {
     color: "#FFFFFF",
-
     fontSize: 27,
     fontWeight: "900",
-
     marginLeft: 9,
-
     letterSpacing: -1,
   },
 
@@ -415,42 +383,49 @@ sidebar: {
     color: "#FFC107",
   },
 
-  /*
-  =========================================================
-  NAVIGATION
+  /* =========================================================
+     NAVIGATION VIEWPORT
 
-  THIS IS THE ONLY SCROLLABLE AREA.
-  =========================================================
-  */
+     THIS IS THE IMPORTANT FIX.
+
+     flex: 1 gives navigation the remaining space.
+
+     overflow: "hidden" creates a hard visual boundary so
+     ScrollView content cannot paint over Premium.
+  ========================================================== */
+
+  navigationViewport: {
+    flex: 1,
+    minHeight: 0,
+    flexShrink: 1,
+    overflow: "hidden",
+  },
+
+  /* =========================================================
+     SCROLLVIEW
+  ========================================================== */
 
   navigationScroll: {
     flex: 1,
     minHeight: 0,
-    width: "100%",
   },
 
   sidebarNavigation: {
     gap: 8,
-
     paddingBottom: 10,
   },
 
-  /*
-  =========================================================
-  MENU ITEMS
-  =========================================================
-  */
+  /* =========================================================
+     NAVIGATION ITEMS
+  ========================================================== */
 
   sidebarItem: {
     height: 54,
-
+    minHeight: 54,
     borderRadius: 14,
-
     flexDirection: "row",
     alignItems: "center",
-
     paddingHorizontal: 16,
-
     flexShrink: 0,
   },
 
@@ -458,12 +433,14 @@ sidebar: {
     backgroundColor: "#171A22",
   },
 
-  sidebarItemText: {
-    color: "#A9AFBA",
+  sidebarItemPressed: {
+    opacity: 0.75,
+  },
 
+  sidebarItemText: {
+    color: "#A8ADB8",
     fontSize: 15,
     fontWeight: "600",
-
     marginLeft: 16,
   },
 
@@ -472,164 +449,123 @@ sidebar: {
     fontWeight: "800",
   },
 
-  /*
-  =========================================================
-  FIXED BOTTOM AREA
-  =========================================================
-  */
+  /* =========================================================
+     BOTTOM AREA
+  ========================================================== */
 
   sidebarBottom: {
     flexShrink: 0,
-
     paddingTop: 12,
+    backgroundColor: "#080A0F",
   },
 
-  /*
-  =========================================================
-  PREMIUM CARD
-
-  Matches Home sidebar.
-  =========================================================
-  */
+  /* =========================================================
+     PREMIUM
+  ========================================================== */
 
   premiumCard: {
+    backgroundColor: "#11110D",
     borderWidth: 1,
     borderColor: "#393426",
-
     borderRadius: 18,
-
-    backgroundColor: "#11110D",
-
     padding: 15,
-
     alignItems: "center",
+    flexShrink: 0,
   },
 
   premiumTitle: {
     color: "#FFFFFF",
-
     fontSize: 17,
     fontWeight: "900",
-
     marginTop: 7,
   },
 
   premiumText: {
     color: "#A9AFBA",
-
     fontSize: 12,
     lineHeight: 18,
-
     textAlign: "center",
-
     marginTop: 7,
   },
 
   upgradeButton: {
     width: "100%",
     height: 38,
-
     borderRadius: 10,
-
     backgroundColor: "#FFC107",
-
     alignItems: "center",
     justifyContent: "center",
-
     marginTop: 12,
   },
 
   upgradeText: {
     color: "#111111",
-
     fontSize: 12,
     fontWeight: "900",
   },
 
-  /*
-  =========================================================
-  USER / XP
-  =========================================================
-  */
+  /* =========================================================
+     USER
+  ========================================================== */
 
   sidebarUser: {
     marginTop: 18,
-
     borderTopWidth: 1,
     borderTopColor: "#242832",
-
     paddingTop: 16,
-
     flexDirection: "row",
     alignItems: "center",
-
     flexShrink: 0,
   },
 
   sidebarUserAvatar: {
     width: 44,
     height: 44,
-
     borderRadius: 22,
-
     borderWidth: 2,
     borderColor: "#FFC107",
-
     backgroundColor: "#22252A",
-
     alignItems: "center",
     justifyContent: "center",
-
     flexShrink: 0,
   },
 
   sidebarUserInfo: {
     flex: 1,
     minWidth: 0,
-
     marginLeft: 11,
   },
 
   sidebarUserName: {
     color: "#FFFFFF",
-
     fontSize: 13,
     fontWeight: "800",
   },
 
   sidebarLevel: {
     color: "#9CA3AF",
-
     fontSize: 11,
-
     marginTop: 2,
   },
 
   xpTrack: {
     height: 6,
-
     borderRadius: 3,
-
     backgroundColor: "#252A33",
-
     overflow: "hidden",
-
     marginTop: 8,
   },
 
   xpFill: {
     height: "100%",
-
     backgroundColor: "#FFC107",
-
     borderRadius: 3,
   },
 
   xpText: {
     color: "#9CA3AF",
-
     fontSize: 10,
-
     marginTop: 5,
   },
+
 });
