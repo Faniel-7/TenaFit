@@ -27,47 +27,30 @@ const mealIcons: Record<
 };
 
 export default function PlanScreen() {
-  const [profile, setProfile] =
-    useState<UserProfile | null>(null);
-
-  const [plan, setPlan] =
-    useState<DailyPlan | null>(null);
-
-  const [loading, setLoading] =
-    useState(true);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [plan, setPlan] = useState<DailyPlan | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
 
     const loadPlan = async () => {
       try {
-        const savedProfile =
-          await getUserProfile();
+        const savedProfile = await getUserProfile();
 
         if (!mounted) {
           return;
         }
 
         if (!savedProfile) {
-          router.replace(
-            "/onboarding/personal-info"
-          );
+          router.replace("/onboarding/personal-info");
           return;
         }
 
         setProfile(savedProfile);
-
-        const dailyPlan =
-          createDailyPlan(
-            savedProfile
-          );
-
-        setPlan(dailyPlan);
+        setPlan(createDailyPlan(savedProfile));
       } catch (error) {
-        console.error(
-          "Failed to create daily plan:",
-          error
-        );
+        console.error("Failed to create daily plan:", error);
       } finally {
         if (mounted) {
           setLoading(false);
@@ -196,7 +179,7 @@ export default function PlanScreen() {
 
         <SectionHeader
           title="Recommended Meals"
-          subtitle="Selected from your food preferences and goal."
+          subtitle="Portions are calculated from your daily nutrition target."
         />
 
         {plan.meals.map((meal) => (
@@ -287,9 +270,7 @@ export default function PlanScreen() {
 
         <Pressable
           style={styles.backButton}
-          onPress={() =>
-            router.replace("/home")
-          }
+          onPress={() => router.replace("/home")}
         >
           <Ionicons
             name="arrow-back"
@@ -353,6 +334,7 @@ function SectionHeader({
     </View>
   );
 }
+
 function MealRecommendationCard({
   meal,
 }: {
@@ -368,8 +350,7 @@ function MealRecommendationCard({
             color="#FFC107"
           />
         </View>
-
-        <View style={styles.mealInfo}>
+<View style={styles.mealInfo}>
           <Text style={styles.mealTitle}>
             {meal.title}
           </Text>
@@ -378,29 +359,40 @@ function MealRecommendationCard({
             {meal.calories} kcal
           </Text>
         </View>
+
+        <View style={styles.mealTarget}>
+          <Text style={styles.mealTargetLabel}>
+            TARGET
+          </Text>
+
+          <Text style={styles.mealTargetValue}>
+            {meal.targetCalories} kcal
+          </Text>
+        </View>
       </View>
 
       <View style={styles.foodList}>
-        {meal.foods.map((food) => (
+        {meal.portions.map((portion) => (
           <View
-            key={food.id}
+            key={portion.food.id}
             style={styles.foodItem}
           >
             <View style={styles.foodDot} />
 
             <View style={styles.foodInfo}>
               <Text style={styles.foodName}>
-                {food.nameEnglish}
+                {portion.food.nameEnglish}
               </Text>
 
               <Text style={styles.foodDetails}>
-                {food.calories} kcal · {food.protein}g protein
+                {portion.grams} g · {portion.nutrition.calories} kcal ·{" "}
+                {portion.nutrition.protein}g protein
               </Text>
             </View>
           </View>
         ))}
 
-        {meal.foods.length === 0 && (
+        {meal.portions.length === 0 && (
           <Text style={styles.noFoodText}>
             No suitable foods found for this meal.
           </Text>
@@ -694,6 +686,25 @@ targetIcon: {
     marginTop: 4,
   },
 
+  mealTarget: {
+    alignItems: "flex-end",
+    marginLeft: 8,
+  },
+
+  mealTargetLabel: {
+    color: "#737B89",
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
+
+  mealTargetValue: {
+    color: "#D5D8DE",
+    fontSize: 10,
+    fontWeight: "800",
+    marginTop: 3,
+  },
+
   foodList: {
     marginTop: 15,
     paddingTop: 13,
@@ -812,8 +823,7 @@ targetIcon: {
     padding: 15,
     marginBottom: 25,
   },
-
-  workoutIcon: {
+workoutIcon: {
     width: 48,
     height: 48,
     borderRadius: 14,
@@ -832,7 +842,8 @@ targetIcon: {
     fontSize: 14,
     fontWeight: "800",
   },
-workoutDescription: {
+
+  workoutDescription: {
     color: "#737B89",
     fontSize: 11,
     lineHeight: 17,
