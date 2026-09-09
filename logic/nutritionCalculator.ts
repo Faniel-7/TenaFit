@@ -39,6 +39,7 @@ export interface NutritionInput {
 }
 
 export interface NutritionTarget {
+  calories: number;
   bmr: number;
 
   maintenanceCalories: number;
@@ -256,6 +257,11 @@ const macros =
     );
 
   return {
+    calories:
+      Math.round(
+        targetCalories
+      ),
+
     bmr: Math.round(bmr),
 
     maintenanceCalories:
