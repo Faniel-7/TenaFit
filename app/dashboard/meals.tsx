@@ -16,14 +16,45 @@ import {
   foodDatabase,
   searchFoods,
 } from "../../data/foods/foodDatabase";
-import { Food } from "../../types/nutrition";
+import { Food, MealType } from "../../types/nutrition";
+import { useAppData } from "../../context/AppDataContext";
 
 type FoodFilter = "all" | "local" | "other";
 
+const mealTypes: {
+  key: MealType;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
+  {
+    key: "breakfast",
+    label: "Breakfast",
+    icon: "sunny-outline",
+  },
+  {
+    key: "lunch",
+    label: "Lunch",
+    icon: "restaurant-outline",
+  },
+  {
+    key: "dinner",
+    label: "Dinner",
+    icon: "moon-outline",
+  },
+  {
+    key: "snack",
+    label: "Snack",
+    icon: "nutrition-outline",
+  },
+];
+
 export default function MealsScreen() {
   const [query, setQuery] = useState("");
-  const [filter, setFilter] =
-    useState<FoodFilter>("all");
+  const [filter, setFilter] = useState<FoodFilter>("all");
+  const [selectedMealType, setSelectedMealType] =
+    useState<MealType>("breakfast");
+
+  const { meals, addMeal, removeMeal } = useAppData();
 
   const foods = useMemo(() => {
     let results: Food[] = query.trim()
@@ -39,6 +70,19 @@ export default function MealsScreen() {
     return results;
   }, [query, filter]);
 
+  const getMealItems = (mealType: MealType) =>
+    meals.filter((meal) => meal.mealType === mealType);
+
+  const getMealCalories = (mealType: MealType) =>
+    getMealItems(mealType).reduce(
+      (total, meal) => total + meal.calories,
+      0
+    );
+
+  const handleAddFood = async (food: Food) => {
+    await addMeal(food, selectedMealType);
+  };
+
   return (
     <DashboardPage
       title="Meals"
@@ -47,35 +91,108 @@ export default function MealsScreen() {
     >
       <DashboardSection
         title="Today's Meals"
-        subtitle="Your meals will be connected to your daily nutrition plan next."
+        subtitle="Track the foods you have eaten today."
       >
-        <DashboardCard
-          icon="sunny-outline"
-          title="Breakfast"
-          description="Morning meal"
-          value="Not added"
-        />
+        <View style={styles.mealTypeRow}>
+          {mealTypes.map((mealType) => (
+            <TouchableOpacity
+              key={mealType.key}
+              onPress={() =>
+                setSelectedMealType(mealType.key)
+              }
+              style={[
+                styles.mealTypeButton,
+                selectedMealType === mealType.key &&
+                  styles.mealTypeButtonActive,
+              ]}
+            >
+              <Ionicons
+                name={mealType.icon}
+                size={16}
+                color={
+                  selectedMealType === mealType.key
+                    ? "#05070B"
+                    : "#8F96A3"
+                }
+              />
 
-        <DashboardCard
-          icon="restaurant-outline"
-          title="Lunch"
-          description="Midday meal"
-          value="Not added"
-        />
+              <Text
+                style={[
+                  styles.mealTypeText,
+                  selectedMealType === mealType.key &&
+                    styles.mealTypeTextActive,
+                ]}
+              >
+                {mealType.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-        <DashboardCard
-          icon="moon-outline"
-          title="Dinner"
-          description="Evening meal"
-          value="Not added"
-        />
+        {mealTypes.map((mealType) => {
+          const items = getMealItems(mealType.key);
+          const calories = getMealCalories(mealType.key);
 
-        <DashboardCard
-          icon="nutrition-outline"
-          title="Snack"
-          description="Snacks throughout the day"
-          value="Not added"
-        />
+          return (
+            <View
+              key={mealType.key}
+              style={styles.mealBlock}
+            >
+              <DashboardCard
+                icon={mealType.icon}
+                title={mealType.label}
+                description={
+                  items.length > 0
+                    ? `${items.length} food${
+                        items.length === 1 ? "" : "s"} added`
+                    : "No food added yet"
+                }
+                value={
+                  items.length > 0
+                    ? `${Math.round(calories)} kcal`
+                    : "Not added"
+                }
+              />
+                {items.length > 0 && (
+                <View style={styles.mealItems}>
+                  {items.map((meal) => (
+                    <View
+                      key={meal.id}
+                      style={styles.mealItem}
+                    >
+                      <View style={styles.mealItemInfo}>
+                        <Text
+                          style={styles.mealItemName}
+                          numberOfLines={1}
+                        >
+                          {meal.food.nameEnglish}
+                        </Text>
+
+                        <Text style={styles.mealItemMacros}>
+                          {Math.round(meal.calories)} kcal ·{" "}
+                          {Math.round(meal.protein)}g protein
+                        </Text>
+                      </View>
+
+                      <TouchableOpacity
+                        onPress={() =>
+                          removeMeal(meal.id)
+                        }
+                        style={styles.removeButton}
+                      >
+                        <Ionicons
+                          name="trash-outline"
+                          size={17}
+                          color="#FF6B6B"
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          );
+        })}
       </DashboardSection>
 
       <DashboardSection
@@ -149,6 +266,8 @@ export default function MealsScreen() {
             <FoodCard
               key={food.id}
               food={food}
+              onAdd={() => handleAddFood(food)}
+              mealType={selectedMealType}
             />
           ))}
         </ScrollView>
@@ -164,7 +283,8 @@ export default function MealsScreen() {
             <Text style={styles.emptyTitle}>
               No foods found
             </Text>
-<Text style={styles.emptyText}>
+
+            <Text style={styles.emptyText}>
               Try another search or filter.
             </Text>
           </View>
@@ -173,7 +293,6 @@ export default function MealsScreen() {
     </DashboardPage>
   );
 }
-
 function FilterButton({
   label,
   active,
@@ -205,14 +324,15 @@ function FilterButton({
 
 function FoodCard({
   food,
+  onAdd,
+  mealType,
 }: {
   food: Food;
+  onAdd: () => void;
+  mealType: MealType;
 }) {
   return (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      style={styles.foodCard}
-    >
+    <View style={styles.foodCard}>
       <View style={styles.foodHeader}>
         <View style={styles.foodIcon}>
           <Ionicons
@@ -285,7 +405,23 @@ function FoodCard({
           value={food.fat}
         />
       </View>
-    </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={onAdd}
+        activeOpacity={0.8}
+        style={styles.addButton}
+      >
+        <Ionicons
+          name="add"
+          size={17}
+          color="#05070B"
+        />
+
+        <Text style={styles.addButtonText}>
+          Add to {mealType}
+        </Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -310,6 +446,87 @@ function Macro({
 }
 
 const styles = StyleSheet.create({
+  mealTypeRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 16,
+  },
+
+  mealTypeButton: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: "#242A34",
+    backgroundColor: "#10141B",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+
+  mealTypeButtonActive: {
+    backgroundColor: "#FFC107",
+    borderColor: "#FFC107",
+  },
+
+  mealTypeText: {
+    color: "#8F96A3",
+    fontSize: 9,
+    fontWeight: "800",
+  },
+
+  mealTypeTextActive: {
+    color: "#05070B",
+  },
+
+  mealBlock: {
+    marginBottom: 10,
+  },
+
+  mealItems: {
+    marginTop: -2,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#242A34",
+    borderRadius: 14,
+    backgroundColor: "#0C1016",
+    overflow: "hidden",
+  },
+
+  mealItem: {
+    minHeight: 52,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#242A34",
+  },
+
+  mealItemInfo: {
+    flex: 1,
+    marginRight: 10,
+  },
+
+  mealItemName: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
+  mealItemMacros: {
+    color: "#737B89",
+    fontSize: 9,
+    marginTop: 4,
+  },
+removeButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#1C1215",
+  },
+
   searchContainer: {
     height: 52,
     borderRadius: 15,
@@ -385,14 +602,15 @@ const styles = StyleSheet.create({
 
   foodCard: {
     width: 245,
-    minHeight: 220,
+    minHeight: 265,
     padding: 16,
     borderRadius: 17,
     borderWidth: 1,
     borderColor: "#242A34",
     backgroundColor: "#10141B",
   },
-foodHeader: {
+
+  foodHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -488,6 +706,24 @@ foodHeader: {
     color: "#737B89",
     fontSize: 9,
     marginTop: 3,
+  },
+
+  addButton: {
+    height: 38,
+    marginTop: 15,
+    borderRadius: 10,
+    backgroundColor: "#FFC107",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+  },
+
+  addButtonText: {
+    color: "#05070B",
+    fontSize: 11,
+    fontWeight: "900",
+    textTransform: "capitalize",
   },
 
   empty: {
