@@ -1,14 +1,17 @@
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getUserProfile } from "../storage/profileStorage";
+import { calculateNutritionTarget } from "../logic/nutritionCalculator";
+import type { UserProfile } from "../types/userProfile";
 
-type NutrientState = {
+type DailyData = {
   calories: number;
   protein: number;
   carbs: number;
@@ -17,35 +20,25 @@ type NutrientState = {
   steps: number;
 };
 
-type MealInput = {
-  calories?: number;
-  protein?: number;
-  carbs?: number;
-  fat?: number;
+type AppDataContextValue = {
+  data: DailyData;
+  goals: DailyData;
+  calorieProgress: number;
+  proteinProgress: number;
+  carbsProgress: number;
+  fatProgress: number;
+  waterProgress: number;
+  stepsProgress: number;
+  overallProgress: number;
+  addMeal: (calories: number, protein: number, carbs: number, fat: number) => Promise<void>;
+  addWater: (amount: number) => Promise<void>;
+  addSteps: (amount: number) => Promise<void>;
+  resetDay: () => Promise<void>;
 };
 
-type AppDataContextType = {
-  data: NutrientState & { progress: number };
-  goals: {
-    calories: number;
-    protein: number;
-    water: number;
-    steps: number;
-  };
-  percentages: {
-    calories: number;
-    protein: number;
-    water: number;
-    steps: number;
-  };
-  addMeal: (meal: MealInput) => void;
-  addWater: (amount: number) => void;
-  addSteps: (amount: number) => void;
-  resetDay: () => void;
-  loading: boolean;
-};
+const STORAGE_KEY = "@tenafit_day_data";
 
-const initialData: NutrientState = {
+const defaultData: DailyData = {
   calories: 0,
   protein: 0,
   carbs: 0,
@@ -54,143 +47,197 @@ const initialData: NutrientState = {
   steps: 0,
 };
 
-const goals = {
+const defaultGoals: DailyData = {
   calories: 2409,
   protein: 140,
+  carbs: 300,
+  fat: 80,
   water: 3.2,
   steps: 7500,
 };
 
-const STORAGE_KEY = "@tenafit_day_data";
+const AppDataContext = createContext<AppDataContextValue | undefined>(
+  undefined
+);
 
-const AppDataContext = createContext<AppDataContextType | undefined>(undefined);
-
-function clampPercent(value: number) {
-  return Math.max(0, Math.min(100, value));
-}
-
-function calculatePercent(current: number, goal: number) {
-  return clampPercent(Math.round((current / goal) * 100));
-}
-
-function calculateProgress(data: NutrientState) {
-  const caloriesProgress = calculatePercent(data.calories, goals.calories);
-  const proteinProgress = calculatePercent(data.protein, goals.protein);
-  const waterProgress = calculatePercent(data.water, goals.water);
-  const stepsProgress = calculatePercent(data.steps, goals.steps);
-
-  const average =
-    (caloriesProgress + proteinProgress + waterProgress + stepsProgress) / 4;
-
-  return clampPercent(Math.round(average));
-}
-
-export function AppDataProvider({ children }: { children: React.ReactNode }) {
-  const [data, setData] = useState<NutrientState>(initialData);
-  const [loading, setLoading] = useState(true);
-  const hydratedRef = useRef(false);
+export function AppDataProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [data, setData] = useState<DailyData>(defaultData);
+  const [goals, setGoals] = useState<DailyData>(defaultGoals);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const saved = await AsyncStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved) as Partial<NutrientState>;
+        const storedData = await AsyncStorage.getItem(STORAGE_KEY);
+
+        if (storedData) {
           setData({
-            calories: parsed.calories ?? 0,
-            protein: parsed.protein ?? 0,
-            carbs: parsed.carbs ?? 0,
-            fat: parsed.fat ?? 0,
-            water: parsed.water ?? 0,
-            steps: parsed.steps ?? 0,
+            ...defaultData,
+            ...JSON.parse(storedData),
           });
         }
-      } catch (error) {
-        console.log("Failed to load app data", error);
-      } finally {
-        hydratedRef.current = true;
-        setLoading(false);
+
+        const profile = await getUserProfile();
+
+        if (profile) {
+          const targets = calculateNutritionTarget(profile);
+
+          setGoals({
+            calories: targets.calories,
+            protein: targets.proteinGrams,
+            carbs: targets.carbohydrateGrams,
+            fat: targets.fatGrams,
+            water: defaultGoals.water,
+            steps: defaultGoals.steps,
+          });
+        }
+      } catch {
+        setData(defaultData);
+        setGoals(defaultGoals);
       }
     };
 
     loadData();
   }, []);
 
-  useEffect(() => {
-    if (!hydratedRef.current) return;
+  const saveData = useCallback(async (newData: DailyData) => {
+    setData(newData);
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+  }, []);
 
-    const saveData = async () => {
-      try {
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      } catch (error) {
-        console.log("Failed to save app data", error);
-      }
-    };
+  const addMeal = useCallback(
+    async (
+      calories: number,
+      protein: number,
+      carbs: number,
+      fat: number
+    ) => {
+      const newData: DailyData = {
+        ...data,
+        calories: data.calories + calories,
+        protein: data.protein + protein,
+        carbs: data.carbs + carbs,
+        fat: data.fat + fat,
+      };
 
-    saveData();
-  }, [data]);
-
-  const addMeal = (meal: MealInput) => {
-    setData((prev) => ({
-      ...prev,
-      calories: prev.calories + (meal.calories ?? 0),
-      protein: prev.protein + (meal.protein ?? 0),
-      carbs: prev.carbs + (meal.carbs ?? 0),
-      fat: prev.fat + (meal.fat ?? 0),
-    }));
-  };
-
-  const addWater = (amount: number) => {
-    setData((prev) => ({
-      ...prev,
-      water: prev.water + Math.max(0, amount),
-    }));
-  };
-
-  const addSteps = (amount: number) => {
-    setData((prev) => ({
-      ...prev,
-      steps: prev.steps + Math.max(0, amount),
-    }));
-  };
-
-  const resetDay = async () => {
-    setData(initialData);
-    try {
-      await AsyncStorage.removeItem(STORAGE_KEY);
-    } catch (error) {
-      console.log("Failed to clear app data", error);
-    }
-  };
-const percentages = useMemo(
-    () => ({
-      calories: calculatePercent(data.calories, goals.calories),
-      protein: calculatePercent(data.protein, goals.protein),
-      water: calculatePercent(data.water, goals.water),
-      steps: calculatePercent(data.steps, goals.steps),
-    }),
-    [data]
+      await saveData(newData);
+    },
+    [data, saveData]
   );
 
-  const computedData = useMemo(() => {
-    return {
-      ...data,
-      progress: calculateProgress(data),
-    };
-  }, [data]);
+  const addWater = useCallback(
+    async (amount: number) => {
+      const newData: DailyData = {
+        ...data,
+        water: data.water + amount,
+      };
+
+      await saveData(newData);
+    },
+    [data, saveData]
+  );
+
+  const addSteps = useCallback(
+    async (amount: number) => {
+      const newData: DailyData = {
+        ...data,
+        steps: data.steps + amount,
+      };
+
+      await saveData(newData);
+    },
+    [data, saveData]
+  );
+
+  const resetDay = useCallback(async () => {
+    await saveData(defaultData);
+  }, [saveData]);
+
+  const calorieProgress = useMemo(
+    () => Math.min(data.calories / Math.max(goals.calories, 1), 1),
+    [data.calories, goals.calories]
+  );
+
+  const proteinProgress = useMemo(
+    () => Math.min(data.protein / Math.max(goals.protein, 1), 1),
+    [data.protein, goals.protein]
+  );
+
+  const carbsProgress = useMemo(
+    () => Math.min(data.carbs / Math.max(goals.carbs, 1), 1),
+    [data.carbs, goals.carbs]
+  );
+
+  const fatProgress = useMemo(
+    () => Math.min(data.fat / Math.max(goals.fat, 1), 1),
+    [data.fat, goals.fat]
+  );
+const waterProgress = useMemo(
+    () => Math.min(data.water / Math.max(goals.water, 0.1), 1),
+    [data.water, goals.water]
+  );
+
+  const stepsProgress = useMemo(
+    () => Math.min(data.steps / Math.max(goals.steps, 1), 1),
+    [data.steps, goals.steps]
+  );
+
+  const overallProgress = useMemo(
+    () =>
+      Math.round(
+        ((calorieProgress +
+          proteinProgress +
+          carbsProgress +
+          fatProgress +
+          waterProgress +
+          stepsProgress) /
+          6) *
+          100
+      ),
+    [
+      calorieProgress,
+      proteinProgress,
+      carbsProgress,
+      fatProgress,
+      waterProgress,
+      stepsProgress,
+    ]
+  );
 
   const value = useMemo(
     () => ({
-      data: computedData,
+      data,
       goals,
-      percentages,
+      calorieProgress,
+      proteinProgress,
+      carbsProgress,
+      fatProgress,
+      waterProgress,
+      stepsProgress,
+      overallProgress,
       addMeal,
       addWater,
       addSteps,
       resetDay,
-      loading,
     }),
-    [computedData, percentages, loading]
+    [
+      data,
+      goals,
+      calorieProgress,
+      proteinProgress,
+      carbsProgress,
+      fatProgress,
+      waterProgress,
+      stepsProgress,
+      overallProgress,
+      addMeal,
+      addWater,
+      addSteps,
+      resetDay,
+    ]
   );
 
   return (
@@ -202,8 +249,10 @@ const percentages = useMemo(
 
 export function useAppData() {
   const context = useContext(AppDataContext);
+
   if (!context) {
     throw new Error("useAppData must be used inside AppDataProvider");
   }
+
   return context;
 }
