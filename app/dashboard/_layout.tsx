@@ -11,7 +11,8 @@ import Sidebar from "../../components/dashboard/Sidebar";
 import BottomNav from "../../components/dashboard/BottomNav";
 
 export default function DashboardLayout() {
-  const { width, height } = useWindowDimensions();
+  const { width, height } =
+    useWindowDimensions();
 
   const isMobileWeb =
     Platform.OS === "web" &&
@@ -26,25 +27,18 @@ export default function DashboardLayout() {
         },
       ]}
     >
-      {/* =====================================================
-          DESKTOP SIDEBAR
-
-          The Sidebar owns its own internal layout.
-          It is NOT part of the page ScrollView.
-      ====================================================== */}
-
       {!isMobileWeb && (
-        <View style={styles.sidebarWrapper}>
+        <View
+          style={[
+            styles.sidebarWrapper,
+            {
+              height,
+            },
+          ]}
+        >
           <Sidebar />
         </View>
       )}
-
-      {/* =====================================================
-          DASHBOARD CONTENT
-
-          The individual dashboard screen controls its own
-          scrolling.
-      ====================================================== */}
 
       <View
         style={[
@@ -56,25 +50,12 @@ export default function DashboardLayout() {
         <Slot />
       </View>
 
-      {/* =====================================================
-          MOBILE NAVIGATION
-      ====================================================== */}
-
       {isMobileWeb && <BottomNav />}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  /* =========================================================
-     DASHBOARD ROOT
-
-     This is the full viewport.
-
-     overflow: hidden prevents dashboard content from
-     physically escaping over the sidebar.
-  ========================================================== */
-
   container: {
     flex: 1,
     width: "100%",
@@ -85,25 +66,12 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
 
-  /* =========================================================
-     SIDEBAR WRAPPER
-
-     Gives the sidebar a definite height equal to the
-     dashboard viewport.
-
-     This is important because Sidebar uses:
-       height: "100%"
-  ========================================================== */
-
   sidebarWrapper: {
+    width: 245,
     height: "100%",
     flexShrink: 0,
     overflow: "hidden",
   },
-
-  /* =========================================================
-     MAIN CONTENT
-  ========================================================== */
 
   content: {
     flex: 1,
@@ -114,10 +82,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#05070B",
     overflow: "hidden",
   },
-
-  /* =========================================================
-     MOBILE CONTENT
-  ========================================================== */
 
   mobileContent: {
     width: "100%",
