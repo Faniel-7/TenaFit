@@ -4,11 +4,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../context/ThemeContext";
 import { useAppData } from "../../context/AppDataContext";
+import { usePremium } from "../../context/PremiumContext";
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const { resetDay } = useAppData();
+  const { isPremium } = usePremium();
 
   const isDark = theme === "dark";
 
@@ -45,7 +47,10 @@ export default function SettingsScreen() {
       >
         <View style={styles.header}>
           <View>
-            <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
+            <Text style={[styles.title, { color: colors.text }]}>
+              Settings
+            </Text>
+
             <Text style={[styles.subtitle, { color: colors.secondary }]}>
               Manage your TenaFit preferences
             </Text>
@@ -59,7 +64,11 @@ export default function SettingsScreen() {
               },
             ]}
           >
-            <Ionicons name="settings-outline" size={24} color={colors.accent} />
+            <Ionicons
+              name="settings-outline"
+              size={24}
+              color={colors.accent}
+            />
           </View>
         </View>
 
@@ -96,8 +105,16 @@ export default function SettingsScreen() {
               <Text style={[styles.itemTitle, { color: colors.text }]}>
                 Dark mode
               </Text>
-              <Text style={[styles.itemSubtitle, { color: colors.secondary }]}>
-                {isDark ? "Dark appearance is enabled" : "Light appearance is enabled"}
+
+              <Text
+                style={[
+                  styles.itemSubtitle,
+                  { color: colors.secondary },
+                ]}
+              >
+                {isDark
+                  ? "Dark appearance is enabled"
+                  : "Light appearance is enabled"}
               </Text>
             </View>
 
@@ -116,8 +133,7 @@ export default function SettingsScreen() {
         <Text style={[styles.sectionTitle, { color: colors.secondary }]}>
           ACCOUNT
         </Text>
-
-        <View
+<View
           style={[
             styles.card,
             {
@@ -129,7 +145,7 @@ export default function SettingsScreen() {
           <Pressable
             style={styles.menuRow}
             onPress={() => router.push("/dashboard/profile")}
->
+          >
             <View
               style={[
                 styles.iconBox,
@@ -138,14 +154,24 @@ export default function SettingsScreen() {
                 },
               ]}
             >
-              <Ionicons name="person-outline" size={22} color="#10B981" />
+              <Ionicons
+                name="person-outline"
+                size={22}
+                color="#10B981"
+              />
             </View>
 
             <View style={styles.rowText}>
               <Text style={[styles.itemTitle, { color: colors.text }]}>
                 Profile
               </Text>
-              <Text style={[styles.itemSubtitle, { color: colors.secondary }]}>
+
+              <Text
+                style={[
+                  styles.itemSubtitle,
+                  { color: colors.secondary },
+                ]}
+              >
                 Update your personal and nutrition information
               </Text>
             </View>
@@ -157,7 +183,78 @@ export default function SettingsScreen() {
             />
           </Pressable>
 
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <View
+            style={[
+              styles.divider,
+              { backgroundColor: colors.border },
+            ]}
+          />
+
+          <Pressable
+            style={styles.menuRow}
+            onPress={() => router.push("/dashboard/premium")}
+          >
+            <View
+              style={[
+                styles.iconBox,
+                {
+                  backgroundColor: isPremium
+                    ? isDark
+                      ? "#182A24"
+                      : "#ECFDF5"
+                    : isDark
+                      ? "#292311"
+                      : "#FFF8E1",
+                },
+              ]}
+            >
+              <Ionicons
+                name={isPremium ? "diamond" : "diamond-outline"}
+                size={22}
+                color={isPremium ? "#22C55E" : "#FFC107"}
+              />
+            </View>
+
+            <View style={styles.rowText}>
+              <Text style={[styles.itemTitle, { color: colors.text }]}>
+                {isPremium ? "Premium" : "Go Premium"}
+              </Text>
+
+              <Text
+                style={[
+                  styles.itemSubtitle,
+                  { color: colors.secondary },
+                ]}
+              >
+                {isPremium
+                  ? "Your Premium access is active"
+                  : "Unlock AI, advanced insights and more"}
+              </Text>
+            </View>
+
+            <View style={styles.premiumRight}>
+              {isPremium && (
+                <View style={styles.activeBadge}>
+                  <Text style={styles.activeBadgeText}>
+                    ACTIVE
+                  </Text>
+                </View>
+              )}
+
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={colors.secondary}
+              />
+            </View>
+          </Pressable>
+
+          <View
+            style={[
+              styles.divider,
+              { backgroundColor: colors.border },
+            ]}
+          />
 
           <Pressable style={styles.menuRow}>
             <View
@@ -168,14 +265,23 @@ export default function SettingsScreen() {
                 },
               ]}
             >
-              <Ionicons name="language-outline" size={22} color="#F97316" />
+              <Ionicons
+                name="language-outline"
+                size={22}
+                color="#F97316"
+              />
             </View>
 
             <View style={styles.rowText}>
               <Text style={[styles.itemTitle, { color: colors.text }]}>
                 Language
               </Text>
-              <Text style={[styles.itemSubtitle, { color: colors.secondary }]}>
+<Text
+                style={[
+                  styles.itemSubtitle,
+                  { color: colors.secondary },
+                ]}
+              >
                 English
               </Text>
             </View>
@@ -210,14 +316,29 @@ export default function SettingsScreen() {
                 },
               ]}
             >
-              <Ionicons name="refresh-outline" size={22} color={colors.danger} />
+              <Ionicons
+                name="refresh-outline"
+                size={22}
+                color={colors.danger}
+              />
             </View>
 
             <View style={styles.rowText}>
-              <Text style={[styles.itemTitle, { color: colors.danger }]}>
+              <Text
+                style={[
+                  styles.itemTitle,
+                  { color: colors.danger },
+                ]}
+              >
                 Reset today's data
               </Text>
-              <Text style={[styles.itemSubtitle, { color: colors.secondary }]}>
+
+              <Text
+                style={[
+                  styles.itemSubtitle,
+                  { color: colors.secondary },
+                ]}
+              >
                 Clear today's meals, water, steps, and progress
               </Text>
             </View>
@@ -263,11 +384,18 @@ export default function SettingsScreen() {
               <Text style={[styles.itemTitle, { color: colors.text }]}>
                 TenaFit
               </Text>
-              <Text style={[styles.itemSubtitle, { color: colors.secondary }]}>
+
+              <Text
+                style={[
+                  styles.itemSubtitle,
+                  { color: colors.secondary },
+                ]}
+              >
                 Your personalized nutrition companion
               </Text>
             </View>
-<Text style={[styles.version, { color: colors.secondary }]}>
+
+            <Text style={[styles.version, { color: colors.secondary }]}>
               v1.0
             </Text>
           </View>
@@ -281,8 +409,18 @@ export default function SettingsScreen() {
             },
           ]}
         >
-          <Ionicons name="heart-outline" size={18} color={colors.accent} />
-          <Text style={[styles.footerText, { color: colors.secondary }]}>
+          <Ionicons
+            name="heart-outline"
+            size={18}
+            color={colors.accent}
+          />
+
+          <Text
+            style={[
+              styles.footerText,
+              { color: colors.secondary },
+            ]}
+          >
             Stay consistent. Your progress starts today.
           </Text>
         </View>
@@ -294,7 +432,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
+},
   content: {
     paddingHorizontal: 20,
     paddingTop: 24,
@@ -373,6 +511,22 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     marginLeft: 73,
+  },
+  premiumRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  activeBadge: {
+    backgroundColor: "#163520",
+    borderRadius: 7,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+  },
+  activeBadgeText: {
+    color: "#22C55E",
+    fontSize: 8,
+    fontWeight: "900",
   },
   version: {
     fontSize: 12,
