@@ -9,7 +9,17 @@ import React, {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getUserProfile } from "../storage/profileStorage";
 import { calculateNutritionTarget } from "../logic/nutritionCalculator";
-import type { UserProfile } from "../types/userProfile";
+import type { Food, MealType } from "../types/nutrition";
+
+type TrackedMeal = {
+  id: string;
+  food: Food;
+  mealType: MealType;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+};
 
 type DailyData = {
   calories: number;
@@ -23,6 +33,7 @@ type DailyData = {
 type AppDataContextValue = {
   data: DailyData;
   goals: DailyData;
+  meals: TrackedMeal[];
   calorieProgress: number;
   proteinProgress: number;
   carbsProgress: number;
@@ -30,7 +41,15 @@ type AppDataContextValue = {
   waterProgress: number;
   stepsProgress: number;
   overallProgress: number;
-  addMeal: (calories: number, protein: number, carbs: number, fat: number) => Promise<void>;
+  addMeal: (
+    food: Food,
+    mealType: MealType,
+    calories?: number,
+    protein?: number,
+    carbs?: number,
+    fat?: number
+  ) => Promise<void>;
+  removeMeal: (id: string) => Promise<void>;
   addWater: (amount: number) => Promise<void>;
   addSteps: (amount: number) => Promise<void>;
   resetDay: () => Promise<void>;
@@ -67,6 +86,7 @@ export function AppDataProvider({
 }) {
   const [data, setData] = useState<DailyData>(defaultData);
   const [goals, setGoals] = useState<DailyData>(defaultGoals);
+  const [meals, setMeals] = useState<TrackedMeal[]>([]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -74,10 +94,14 @@ export function AppDataProvider({
         const storedData = await AsyncStorage.getItem(STORAGE_KEY);
 
         if (storedData) {
+          const parsed = JSON.parse(storedData);
+
           setData({
             ...defaultData,
-            ...JSON.parse(storedData),
+            ...parsed.data,
           });
+
+          setMeals(parsed.meals ?? []);
         }
 
         const profile = await getUserProfile();
@@ -96,6 +120,7 @@ export function AppDataProvider({
         }
       } catch {
         setData(defaultData);
+        setMeals([]);
         setGoals(defaultGoals);
       }
     };
@@ -103,18 +128,43 @@ export function AppDataProvider({
     loadData();
   }, []);
 
-  const saveData = useCallback(async (newData: DailyData) => {
-    setData(newData);
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
-  }, []);
+  const saveState = useCallback(
+    async (newData: DailyData, newMeals: TrackedMeal[]) => {
+      setData(newData);
+      setMeals(newMeals);
+
+      await AsyncStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          data: newData,
+          meals: newMeals,
+        })
+      );
+    },
+    []
+  );
 
   const addMeal = useCallback(
     async (
-      calories: number,
-      protein: number,
-      carbs: number,
-      fat: number
+      food: Food,
+      mealType: MealType,
+      calories = food.calories,
+      protein = food.protein,
+      carbs = food.carbohydrates,
+      fat = food.fat
     ) => {
+      const trackedMeal: TrackedMeal = {
+        id: `${food.id}-${Date.now()}`,
+        food,
+        mealType,
+        calories,
+        protein,
+        carbs,
+        fat,
+      };
+
+      const newMeals = [...meals, trackedMeal];
+
       const newData: DailyData = {
         ...data,
         calories: data.calories + calories,
@@ -123,9 +173,31 @@ export function AppDataProvider({
         fat: data.fat + fat,
       };
 
-      await saveData(newData);
+      await saveState(newData, newMeals);
     },
-    [data, saveData]
+    [data, meals, saveState]
+  );
+
+  const removeMeal = useCallback(
+    async (id: string) => {
+      const meal = meals.find((item) => item.id === id);
+
+      if (!meal) {
+        return;
+      }
+
+      const newMeals = meals.filter((item) => item.id !== id);
+const newData: DailyData = {
+        ...data,
+        calories: Math.max(0, data.calories - meal.calories),
+        protein: Math.max(0, data.protein - meal.protein),
+        carbs: Math.max(0, data.carbs - meal.carbs),
+        fat: Math.max(0, data.fat - meal.fat),
+      };
+
+      await saveState(newData, newMeals);
+    },
+    [data, meals, saveState]
   );
 
   const addWater = useCallback(
@@ -135,9 +207,9 @@ export function AppDataProvider({
         water: data.water + amount,
       };
 
-      await saveData(newData);
+      await saveState(newData, meals);
     },
-    [data, saveData]
+    [data, meals, saveState]
   );
 
   const addSteps = useCallback(
@@ -147,14 +219,14 @@ export function AppDataProvider({
         steps: data.steps + amount,
       };
 
-      await saveData(newData);
+      await saveState(newData, meals);
     },
-    [data, saveData]
+    [data, meals, saveState]
   );
 
   const resetDay = useCallback(async () => {
-    await saveData(defaultData);
-  }, [saveData]);
+    await saveState(defaultData, []);
+  }, [saveState]);
 
   const calorieProgress = useMemo(
     () => Math.min(data.calories / Math.max(goals.calories, 1), 1),
@@ -175,7 +247,8 @@ export function AppDataProvider({
     () => Math.min(data.fat / Math.max(goals.fat, 1), 1),
     [data.fat, goals.fat]
   );
-const waterProgress = useMemo(
+
+  const waterProgress = useMemo(
     () => Math.min(data.water / Math.max(goals.water, 0.1), 1),
     [data.water, goals.water]
   );
@@ -211,6 +284,7 @@ const waterProgress = useMemo(
     () => ({
       data,
       goals,
+      meals,
       calorieProgress,
       proteinProgress,
       carbsProgress,
@@ -219,6 +293,7 @@ const waterProgress = useMemo(
       stepsProgress,
       overallProgress,
       addMeal,
+      removeMeal,
       addWater,
       addSteps,
       resetDay,
@@ -226,6 +301,7 @@ const waterProgress = useMemo(
     [
       data,
       goals,
+      meals,
       calorieProgress,
       proteinProgress,
       carbsProgress,
@@ -234,6 +310,7 @@ const waterProgress = useMemo(
       stepsProgress,
       overallProgress,
       addMeal,
+      removeMeal,
       addWater,
       addSteps,
       resetDay,
