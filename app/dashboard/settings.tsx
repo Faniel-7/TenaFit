@@ -1,548 +1,567 @@
 import React from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../context/ThemeContext";
-import { useAppData } from "../../context/AppDataContext";
 import { usePremium } from "../../context/PremiumContext";
+import { useAppData } from "../../context/AppDataContext";
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { theme, toggleTheme } = useTheme();
-  const { resetDay } = useAppData();
+  const { colors, isDark, toggleTheme } = useTheme();
   const { isPremium } = usePremium();
-
-  const isDark = theme === "dark";
-
-  const colors = {
-    background: isDark ? "#0B0F14" : "#F6F8FA",
-    card: isDark ? "#151B23" : "#FFFFFF",
-    text: isDark ? "#FFFFFF" : "#111827",
-    secondary: isDark ? "#9CA3AF" : "#6B7280",
-    border: isDark ? "#252D38" : "#E5E7EB",
-    accent: "#4F8EF7",
-    danger: "#EF4444",
-  };
-
-  const handleReset = () => {
-    Alert.alert(
-      "Reset today's data",
-      "This will remove today's tracked meals, water, steps, and progress. Continue?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Reset",
-          style: "destructive",
-          onPress: resetDay,
-        },
-      ]
-    );
-  };
+  const { resetDay } = useAppData();
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={[
+        styles.container,
+        { backgroundColor: colors.background },
+      ]}
+    >
+      <View style={styles.header}>
+        <Text style={[styles.eyebrow, { color: colors.primary }]}>
+          PREFERENCES
+        </Text>
+        <Text style={[styles.title, { color: colors.text }]}>
+          Settings
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.subtext }]}>
+          Manage your TenaFit experience and preferences.
+        </Text>
+      </View>
+
+      <SectionTitle title="Appearance" colors={colors} />
+
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+          },
+        ]}
       >
-        <View style={styles.header}>
-          <View>
-            <Text style={[styles.title, { color: colors.text }]}>
-              Settings
-            </Text>
+        <SettingRow
+          icon="◐"
+          title="Dark mode"
+          description={isDark ? "TenaFit is using dark appearance" : "TenaFit is using light appearance"}
+          colors={colors}
+          right={
+            <Pressable
+              onPress={toggleTheme}
+              style={[
+                styles.switch,
+                {
+                  backgroundColor: isDark
+                    ? colors.primary
+                    : colors.border,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.switchThumb,
+                  isDark && styles.switchThumbActive,
+                ]}
+              />
+            </Pressable>
+          }
+        />
+      </View>
 
-            <Text style={[styles.subtitle, { color: colors.secondary }]}>
-              Manage your TenaFit preferences
-            </Text>
-          </View>
+      <SectionTitle title="Account" colors={colors} />
 
-          <View
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        <SettingRow
+          icon="◉"
+          title="Profile"
+          description="View and manage your personal information"
+          colors={colors}
+          onPress={() => router.push("/dashboard/profile")}
+        />
+
+        <Divider colors={colors} />
+
+        <SettingRow
+          icon="⌁"
+          title="Language"
+          description="English"
+          colors={colors}
+          onPress={() => {}}
+          value="Soon"
+        />
+      </View>
+
+      <SectionTitle title="TenaFit Premium" colors={colors} />
+
+      <Pressable
+        onPress={() => router.push("/dashboard/premium")}
+        style={({ pressed }) => [
+          styles.premiumCard,
+          {
+            backgroundColor: isPremium
+              ? colors.card
+              : colors.primary,
+            borderColor: isPremium
+              ? colors.border
+              : colors.primary,
+            opacity: pressed ? 0.85 : 1,
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.premiumIcon,
+            {
+              backgroundColor: isPremium
+                ? isDark
+                  ? "rgba(255,255,255,0.07)"
+                  : "rgba(0,0,0,0.05)"
+                : "rgba(255,255,255,0.16)",
+            },
+          ]}
+        >
+          <Text
             style={[
-              styles.headerIcon,
-              {
-                backgroundColor: isDark ? "#1C2633" : "#EAF2FF",
-              },
+              styles.premiumIconText,
+              { color: isPremium ? colors.primary : "#FFFFFF" },
             ]}
           >
-            <Ionicons
-              name="settings-outline"
-              size={24}
-              color={colors.accent}
-            />
-          </View>
+            ★
+          </Text>
         </View>
-
-        <Text style={[styles.sectionTitle, { color: colors.secondary }]}>
-          APPEARANCE
-        </Text>
-
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <View style={styles.row}>
-            <View
+<View style={styles.premiumContent}>
+          <View style={styles.premiumTitleRow}>
+            <Text
               style={[
-                styles.iconBox,
-                {
-                  backgroundColor: isDark ? "#24202F" : "#F3EFFF",
-                },
+                styles.premiumTitle,
+                { color: isPremium ? colors.text : "#FFFFFF" },
               ]}
             >
-              <Ionicons
-                name={isDark ? "moon-outline" : "sunny-outline"}
-                size={22}
-                color={isDark ? "#A78BFA" : "#F59E0B"}
-              />
-            </View>
-
-            <View style={styles.rowText}>
-              <Text style={[styles.itemTitle, { color: colors.text }]}>
-                Dark mode
-              </Text>
-
-              <Text
-                style={[
-                  styles.itemSubtitle,
-                  { color: colors.secondary },
-                ]}
-              >
-                {isDark
-                  ? "Dark appearance is enabled"
-                  : "Light appearance is enabled"}
-              </Text>
-            </View>
-
-            <Switch
-              value={isDark}
-              onValueChange={toggleTheme}
-              trackColor={{
-                false: isDark ? "#374151" : "#D1D5DB",
-                true: colors.accent,
-              }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-        </View>
-
-        <Text style={[styles.sectionTitle, { color: colors.secondary }]}>
-          ACCOUNT
-        </Text>
-<View
-          style={[
-            styles.card,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <Pressable
-            style={styles.menuRow}
-            onPress={() => router.push("/dashboard/profile")}
-          >
-            <View
-              style={[
-                styles.iconBox,
-                {
-                  backgroundColor: isDark ? "#182A24" : "#ECFDF5",
-                },
-              ]}
-            >
-              <Ionicons
-                name="person-outline"
-                size={22}
-                color="#10B981"
-              />
-            </View>
-
-            <View style={styles.rowText}>
-              <Text style={[styles.itemTitle, { color: colors.text }]}>
-                Profile
-              </Text>
-
-              <Text
-                style={[
-                  styles.itemSubtitle,
-                  { color: colors.secondary },
-                ]}
-              >
-                Update your personal and nutrition information
-              </Text>
-            </View>
-
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={colors.secondary}
-            />
-          </Pressable>
-
-          <View
-            style={[
-              styles.divider,
-              { backgroundColor: colors.border },
-            ]}
-          />
-
-          <Pressable
-            style={styles.menuRow}
-            onPress={() => router.push("/dashboard/premium")}
-          >
-            <View
-              style={[
-                styles.iconBox,
-                {
-                  backgroundColor: isPremium
-                    ? isDark
-                      ? "#182A24"
-                      : "#ECFDF5"
-                    : isDark
-                      ? "#292311"
-                      : "#FFF8E1",
-                },
-              ]}
-            >
-              <Ionicons
-                name={isPremium ? "diamond" : "diamond-outline"}
-                size={22}
-                color={isPremium ? "#22C55E" : "#FFC107"}
-              />
-            </View>
-
-            <View style={styles.rowText}>
-              <Text style={[styles.itemTitle, { color: colors.text }]}>
-                {isPremium ? "Premium" : "Go Premium"}
-              </Text>
-
-              <Text
-                style={[
-                  styles.itemSubtitle,
-                  { color: colors.secondary },
-                ]}
-              >
-                {isPremium
-                  ? "Your Premium access is active"
-                  : "Unlock AI, advanced insights and more"}
-              </Text>
-            </View>
-
-            <View style={styles.premiumRight}>
-              {isPremium && (
-                <View style={styles.activeBadge}>
-                  <Text style={styles.activeBadgeText}>
-                    ACTIVE
-                  </Text>
-                </View>
-              )}
-
-              <Ionicons
-                name="chevron-forward"
-                size={20}
-                color={colors.secondary}
-              />
-            </View>
-          </Pressable>
-
-          <View
-            style={[
-              styles.divider,
-              { backgroundColor: colors.border },
-            ]}
-          />
-
-          <Pressable style={styles.menuRow}>
-            <View
-              style={[
-                styles.iconBox,
-                {
-                  backgroundColor: isDark ? "#28221A" : "#FFF7ED",
-                },
-              ]}
-            >
-              <Ionicons
-                name="language-outline"
-                size={22}
-                color="#F97316"
-              />
-            </View>
-
-            <View style={styles.rowText}>
-              <Text style={[styles.itemTitle, { color: colors.text }]}>
-                Language
-              </Text>
-<Text
-                style={[
-                  styles.itemSubtitle,
-                  { color: colors.secondary },
-                ]}
-              >
-                English
-              </Text>
-            </View>
-
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={colors.secondary}
-            />
-          </Pressable>
-        </View>
-
-        <Text style={[styles.sectionTitle, { color: colors.secondary }]}>
-          DAILY DATA
-        </Text>
-
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <Pressable style={styles.menuRow} onPress={handleReset}>
-            <View
-              style={[
-                styles.iconBox,
-                {
-                  backgroundColor: isDark ? "#301C20" : "#FEF2F2",
-                },
-              ]}
-            >
-              <Ionicons
-                name="refresh-outline"
-                size={22}
-                color={colors.danger}
-              />
-            </View>
-
-            <View style={styles.rowText}>
-              <Text
-                style={[
-                  styles.itemTitle,
-                  { color: colors.danger },
-                ]}
-              >
-                Reset today's data
-              </Text>
-
-              <Text
-                style={[
-                  styles.itemSubtitle,
-                  { color: colors.secondary },
-                ]}
-              >
-                Clear today's meals, water, steps, and progress
-              </Text>
-            </View>
-
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={colors.secondary}
-            />
-          </Pressable>
-        </View>
-
-        <Text style={[styles.sectionTitle, { color: colors.secondary }]}>
-          ABOUT
-        </Text>
-
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <View style={styles.menuRow}>
-            <View
-              style={[
-                styles.iconBox,
-                {
-                  backgroundColor: isDark ? "#182536" : "#EFF6FF",
-                },
-              ]}
-            >
-              <Ionicons
-                name="information-circle-outline"
-                size={22}
-                color={colors.accent}
-              />
-            </View>
-
-            <View style={styles.rowText}>
-              <Text style={[styles.itemTitle, { color: colors.text }]}>
-                TenaFit
-              </Text>
-
-              <Text
-                style={[
-                  styles.itemSubtitle,
-                  { color: colors.secondary },
-                ]}
-              >
-                Your personalized nutrition companion
-              </Text>
-            </View>
-
-            <Text style={[styles.version, { color: colors.secondary }]}>
-              v1.0
+              {isPremium ? "TenaFit Premium" : "Upgrade to Premium"}
             </Text>
-          </View>
-        </View>
 
-        <View
-          style={[
-            styles.footer,
-            {
-              backgroundColor: isDark ? "#111820" : "#EEF5FF",
-            },
-          ]}
-        >
-          <Ionicons
-            name="heart-outline"
-            size={18}
-            color={colors.accent}
-          />
+            {isPremium ? (
+              <View
+                style={[
+                  styles.activeBadge,
+                  {
+                    backgroundColor: isDark
+                      ? "rgba(255,255,255,0.07)"
+                      : "rgba(0,0,0,0.05)",
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.activeBadgeText,
+                    { color: colors.primary },
+                  ]}
+                >
+                  ACTIVE
+                </Text>
+              </View>
+            ) : null}
+          </View>
 
           <Text
             style={[
-              styles.footerText,
-              { color: colors.secondary },
+              styles.premiumDescription,
+              { color: isPremium ? colors.subtext : "rgba(255,255,255,0.82)" },
             ]}
           >
-            Stay consistent. Your progress starts today.
+            {isPremium
+              ? "Your premium features are unlocked."
+              : "Unlock AI nutrition coaching and future premium features."}
           </Text>
         </View>
-      </ScrollView>
+
+        <Text
+          style={[
+            styles.chevron,
+            { color: isPremium ? colors.text : "#FFFFFF" },
+          ]}
+        >
+          ›
+        </Text>
+      </Pressable>
+
+      <SectionTitle title="Daily data" colors={colors} />
+
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        <SettingRow
+          icon="↻"
+          title="Reset today's data"
+          description="Clear today's meals, water, steps and progress"
+          colors={colors}
+          onPress={resetDay}
+          danger
+        />
+      </View>
+
+      <SectionTitle title="About" colors={colors} />
+
+      <View
+        style={[
+          styles.aboutCard,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.logo,
+            { backgroundColor: colors.primary },
+          ]}
+        >
+          <Text style={styles.logoText}>T</Text>
+        </View>
+
+        <View style={styles.aboutContent}>
+          <Text style={[styles.aboutTitle, { color: colors.text }]}>
+            TenaFit
+          </Text>
+
+          <Text style={[styles.aboutText, { color: colors.subtext }]}> 
+            Your personalized nutrition and fitness companion.
+          </Text>
+
+          <Text style={[styles.version, { color: colors.secondary }]}>
+            Version 1.0.0
+          </Text>
+        </View>
+      </View>
+
+      <Text style={[styles.footer, { color: colors.subtext }]}>
+        Built to help you understand your nutrition, stay consistent and
+        reach your goals.
+      </Text>
+    </ScrollView>
+  );
+}
+
+function SectionTitle({
+  title,
+  colors,
+}: {
+  title: string;
+  colors: any;
+}) {
+  return (
+    <Text style={[styles.sectionTitle, { color: colors.text }]}>
+      {title}
+    </Text>
+  );
+}
+
+function Divider({ colors }: { colors: any }) {
+  return (
+    <View
+      style={[
+        styles.divider,
+        { backgroundColor: colors.border },
+      ]}
+    />
+  );
+}
+
+function SettingRow({
+  icon,
+  title,
+  description,
+  colors,
+  onPress,
+  right,
+  value,
+  danger = false,
+}: {
+  icon: string;
+  title: string;
+  description: string;
+  colors: any;
+  onPress?: () => void;
+  right?: React.ReactNode;
+  value?: string;
+  danger?: boolean;
+}) {
+  const content = (
+    <View style={styles.settingRow}>
+<View
+        style={[
+          styles.settingIcon,
+          {
+            backgroundColor: danger
+              ? "rgba(220,70,70,0.09)"
+              : colors.background,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.settingIconText,
+            { color: danger ? "#D64C4C" : colors.primary },
+          ]}
+        >
+          {icon}
+        </Text>
+      </View>
+
+      <View style={styles.settingContent}>
+        <Text
+          style={[
+            styles.settingTitle,
+            { color: danger ? "#D64C4C" : colors.text },
+          ]}
+        >
+          {title}
+        </Text>
+
+        <Text style={[styles.settingDescription, { color: colors.muted }]}>
+          {description}
+        </Text>
+      </View>
+
+      {right}
+
+      {!right && value ? (
+        <Text style={[styles.settingValue, { color: colors.muted }]}>
+          {value}
+        </Text>
+      ) : null}
+
+      {!right && !value && onPress ? (
+        <Text style={[styles.chevron, { color: colors.muted }]}>›</Text>
+      ) : null}
     </View>
+  );
+
+  if (!onPress) {
+    return content;
+  }
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        opacity: pressed ? 0.65 : 1,
+      })}
+    >
+      {content}
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-},
-  content: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 40,
+    padding: 20,
+    paddingBottom: 48,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 30,
+    marginBottom: 26,
+  },
+  eyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1.7,
+    marginBottom: 5,
   },
   title: {
     fontSize: 30,
     fontWeight: "800",
-    letterSpacing: -0.6,
+    letterSpacing: -0.8,
+    marginBottom: 7,
   },
   subtitle: {
     fontSize: 14,
-    marginTop: 5,
-  },
-  headerIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
+    lineHeight: 21,
   },
   sectionTitle: {
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 1.2,
-    marginBottom: 10,
-    marginTop: 6,
+    fontSize: 17,
+    fontWeight: "700",
+    marginBottom: 11,
   },
   card: {
     borderWidth: 1,
-    borderRadius: 18,
-    marginBottom: 24,
+    borderRadius: 20,
+    paddingHorizontal: 17,
+    marginBottom: 25,
     overflow: "hidden",
   },
-  row: {
-    minHeight: 76,
+  settingRow: {
+    minHeight: 72,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
   },
-  menuRow: {
-    minHeight: 78,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  iconBox: {
-    width: 44,
-    height: 44,
+  settingIcon: {
+    width: 43,
+    height: 43,
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 13,
   },
-  rowText: {
-    flex: 1,
-  },
-  itemTitle: {
-    fontSize: 16,
+  settingIconText: {
+    fontSize: 19,
     fontWeight: "700",
   },
-  itemSubtitle: {
+  settingContent: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  settingTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 3,
+  },
+  settingDescription: {
     fontSize: 12,
-    lineHeight: 18,
-    marginTop: 3,
-    paddingRight: 8,
+    lineHeight: 17,
   },
-  divider: {
-    height: 1,
-    marginLeft: 73,
-  },
-  premiumRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  activeBadge: {
-    backgroundColor: "#163520",
-    borderRadius: 7,
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-  },
-  activeBadgeText: {
-    color: "#22C55E",
-    fontSize: 8,
-    fontWeight: "900",
-  },
-  version: {
+  settingValue: {
     fontSize: 12,
     fontWeight: "600",
   },
-  footer: {
-    minHeight: 54,
-    borderRadius: 16,
+  divider: {
+    height: 1,
+    marginLeft: 56,
+  },
+  switch: {
+    width: 50,
+    height: 30,
+    borderRadius: 20,
+    padding: 3,
+    justifyContent: "center",
+  },
+  switchThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    transform: [{ translateX: 0 }],
+  },
+  switchThumbActive: {
+    transform: [{ translateX: 20 }],
+  },
+  premiumCard: {
+    minHeight: 94,
+    borderRadius: 22,
+    borderWidth: 1,
+    padding: 17,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-    gap: 8,
+    marginBottom: 25,
   },
-  footerText: {
+  premiumIcon: {
+    width: 49,
+    height: 49,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 13,
+  },
+  premiumIconText: {
+    fontSize: 23,
+    fontWeight: "800",
+  },
+  premiumContent: {
+    flex: 1,
+  },
+  premiumTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  premiumTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  activeBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  activeBadgeText: {
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0.7,
+  },
+  premiumDescription: {
     fontSize: 12,
-    fontWeight: "500",
+    lineHeight: 17,
+    paddingRight: 5,
+  },
+  chevron: {
+    fontSize: 26,
+    fontWeight: "300",
+marginLeft: 8,
+  },
+  aboutCard: {
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 18,
+  },
+  logo: {
+    width: 55,
+    height: 55,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+  logoText: {
+    color: "#FFFFFF",
+    fontSize: 26,
+    fontWeight: "900",
+  },
+  aboutContent: {
+    flex: 1,
+  },
+  aboutTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  aboutText: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginBottom: 5,
+  },
+  version: {
+    fontSize: 11,
+  },
+  footer: {
+    textAlign: "center",
+    fontSize: 12,
+    lineHeight: 18,
+    paddingHorizontal: 15,
   },
 });
