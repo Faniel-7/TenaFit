@@ -4,6 +4,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -28,6 +29,12 @@ type DailyData = {
   fat: number;
   water: number;
   steps: number;
+};
+
+type StoredDayData = {
+  date?: string;
+  data?: Partial<DailyData>;
+  meals?: TrackedMeal[];
 };
 
 type AppDataContextValue = {
@@ -79,6 +86,45 @@ const AppDataContext = createContext<AppDataContextValue | undefined>(
   undefined
 );
 
+const getTodayKey = () => {
+  const now = new Date();
+
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+const normalizeData = (
+  storedData?: Partial<DailyData>
+): DailyData => ({
+  calories:
+    typeof storedData?.calories === "number"
+      ? Math.max(0, storedData.calories)
+      : 0,
+  protein:
+    typeof storedData?.protein === "number"
+      ? Math.max(0, storedData.protein)
+      : 0,
+  carbs:
+    typeof storedData?.carbs === "number"
+      ? Math.max(0, storedData.carbs)
+      : 0,
+  fat:
+    typeof storedData?.fat === "number"
+      ? Math.max(0, storedData.fat)
+      : 0,
+  water:
+    typeof storedData?.water === "number"
+      ? Math.max(0, storedData.water)
+      : 0,
+  steps:
+    typeof storedData?.steps === "number"
+      ? Math.max(0, storedData.steps)
+      : 0,
+});
+
 export function AppDataProvider({
   children,
 }: {
@@ -88,20 +134,102 @@ export function AppDataProvider({
   const [goals, setGoals] = useState<DailyData>(defaultGoals);
   const [meals, setMeals] = useState<TrackedMeal[]>([]);
 
-  useEffect(() => {
+  const stateRef = useRef({
+    data: defaultData,
+    meals: [] as TrackedMeal[],
+  });
+
+  const operationQueue = useRef<Promise<void>>(Promise.resolve());
+
+  const updateLocalState = useCallback(
+    (newData: DailyData, newMeals: TrackedMeal[]) => {
+      stateRef.current = {
+        data: newData,
+        meals: newMeals,
+      };
+
+      setData(newData);
+      setMeals(newMeals);
+    },
+    []
+  );
+
+  const persistState = useCallback(
+    async (newData: DailyData, newMeals: TrackedMeal[]) => {
+      const stateToStore = {
+        date: getTodayKey(),
+        data: newData,
+        meals: newMeals,
+      };
+
+      updateLocalState(newData, newMeals);
+
+      await AsyncStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(stateToStore)
+      );
+    },
+    [updateLocalState]
+  );
+
+  const enqueue = useCallback(
+    (operation: () => Promise<void>) => {
+      const nextOperation = operationQueue.current.then(operation);
+
+      operationQueue.current = nextOperation.catch(() => undefined);
+
+      return nextOperation;
+    },
+    []
+  );
+useEffect(() => {
     const loadData = async () => {
       try {
         const storedData = await AsyncStorage.getItem(STORAGE_KEY);
+        const today = getTodayKey();
 
         if (storedData) {
-          const parsed = JSON.parse(storedData);
+          const parsed: StoredDayData = JSON.parse(storedData);
 
-          setData({
-            ...defaultData,
-            ...parsed.data,
-          });
+          if (parsed.date && parsed.date !== today) {
+            updateLocalState(defaultData, []);
 
-          setMeals(parsed.meals ?? []);
+            await AsyncStorage.setItem(
+              STORAGE_KEY,
+              JSON.stringify({
+                date: today,
+                data: defaultData,
+                meals: [],
+              })
+            );
+          } else {
+            const loadedData = normalizeData(parsed.data);
+            const loadedMeals = Array.isArray(parsed.meals)
+              ? parsed.meals
+              : [];
+
+            updateLocalState(loadedData, loadedMeals);
+
+            await AsyncStorage.setItem(
+              STORAGE_KEY,
+              JSON.stringify({
+                date: today,
+                data: loadedData,
+                meals: loadedMeals,
+              })
+            );
+          }
+        } else {
+          updateLocalState(defaultData, []);
+
+          await AsyncStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({
+              date: today,
+              data: defaultData,
+              meals: [],
+            })
+          );
         }
 
         const profile = await getUserProfile();
@@ -117,32 +245,17 @@ export function AppDataProvider({
             water: defaultGoals.water,
             steps: defaultGoals.steps,
           });
+        } else {
+          setGoals(defaultGoals);
         }
       } catch {
-        setData(defaultData);
-        setMeals([]);
+        updateLocalState(defaultData, []);
         setGoals(defaultGoals);
       }
     };
 
     loadData();
-  }, []);
-
-  const saveState = useCallback(
-    async (newData: DailyData, newMeals: TrackedMeal[]) => {
-      setData(newData);
-      setMeals(newMeals);
-
-      await AsyncStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          data: newData,
-          meals: newMeals,
-        })
-      );
-    },
-    []
-  );
+  }, [updateLocalState]);
 
   const addMeal = useCallback(
     async (
@@ -153,108 +266,185 @@ export function AppDataProvider({
       carbs = food.carbohydrates,
       fat = food.fat
     ) => {
-      const trackedMeal: TrackedMeal = {
-        id: `${food.id}-${Date.now()}`,
-        food,
-        mealType,
-        calories,
-        protein,
-        carbs,
-        fat,
-      };
+      return enqueue(async () => {
+        const currentData = stateRef.current.data;
+        const currentMeals = stateRef.current.meals;
 
-      const newMeals = [...meals, trackedMeal];
+        const trackedMeal: TrackedMeal = {
+          id: `${food.id}-${Date.now()}-${Math.random()
+            .toString(36)
+            .slice(2, 8)}`,
+          food,
+          mealType,
+          calories: Math.max(0, calories),
+          protein: Math.max(0, protein),
+          carbs: Math.max(0, carbs),
+          fat: Math.max(0, fat),
+        };
 
-      const newData: DailyData = {
-        ...data,
-        calories: data.calories + calories,
-        protein: data.protein + protein,
-        carbs: data.carbs + carbs,
-        fat: data.fat + fat,
-      };
+        const newMeals = [...currentMeals, trackedMeal];
 
-      await saveState(newData, newMeals);
+        const newData: DailyData = {
+          ...currentData,
+          calories:
+            currentData.calories + trackedMeal.calories,
+          protein:
+            currentData.protein + trackedMeal.protein,
+          carbs:
+            currentData.carbs + trackedMeal.carbs,
+          fat:
+            currentData.fat + trackedMeal.fat,
+        };
+
+        await persistState(newData, newMeals);
+      });
     },
-    [data, meals, saveState]
+    [enqueue, persistState]
   );
 
   const removeMeal = useCallback(
     async (id: string) => {
-      const meal = meals.find((item) => item.id === id);
+      return enqueue(async () => {
+        const currentData = stateRef.current.data;
+        const currentMeals = stateRef.current.meals;
 
-      if (!meal) {
-        return;
-      }
+        const meal = currentMeals.find(
+          (item) => item.id === id
+        );
 
-      const newMeals = meals.filter((item) => item.id !== id);
-const newData: DailyData = {
-        ...data,
-        calories: Math.max(0, data.calories - meal.calories),
-        protein: Math.max(0, data.protein - meal.protein),
-        carbs: Math.max(0, data.carbs - meal.carbs),
-        fat: Math.max(0, data.fat - meal.fat),
-      };
+        if (!meal) {
+          return;
+        }
 
-      await saveState(newData, newMeals);
+        const newMeals = currentMeals.filter(
+          (item) => item.id !== id
+        );
+
+        const newData: DailyData = {
+          ...currentData,
+          calories: Math.max(
+            0,
+            currentData.calories - meal.calories
+          ),
+protein: Math.max(
+            0,
+            currentData.protein - meal.protein
+          ),
+          carbs: Math.max(
+            0,
+            currentData.carbs - meal.carbs
+          ),
+          fat: Math.max(
+            0,
+            currentData.fat - meal.fat
+          ),
+        };
+
+        await persistState(newData, newMeals);
+      });
     },
-    [data, meals, saveState]
+    [enqueue, persistState]
   );
 
   const addWater = useCallback(
     async (amount: number) => {
-      const newData: DailyData = {
-        ...data,
-        water: data.water + amount,
-      };
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return;
+      }
 
-      await saveState(newData, meals);
+      return enqueue(async () => {
+        const currentData = stateRef.current.data;
+        const currentMeals = stateRef.current.meals;
+
+        const newData: DailyData = {
+          ...currentData,
+          water: currentData.water + amount,
+        };
+
+        await persistState(newData, currentMeals);
+      });
     },
-    [data, meals, saveState]
+    [enqueue, persistState]
   );
 
   const addSteps = useCallback(
     async (amount: number) => {
-      const newData: DailyData = {
-        ...data,
-        steps: data.steps + amount,
-      };
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return;
+      }
 
-      await saveState(newData, meals);
+      return enqueue(async () => {
+        const currentData = stateRef.current.data;
+        const currentMeals = stateRef.current.meals;
+
+        const newData: DailyData = {
+          ...currentData,
+          steps: currentData.steps + amount,
+        };
+
+        await persistState(newData, currentMeals);
+      });
     },
-    [data, meals, saveState]
+    [enqueue, persistState]
   );
 
   const resetDay = useCallback(async () => {
-    await saveState(defaultData, []);
-  }, [saveState]);
+    return enqueue(async () => {
+      await persistState(defaultData, []);
+    });
+  }, [enqueue, persistState]);
 
   const calorieProgress = useMemo(
-    () => Math.min(data.calories / Math.max(goals.calories, 1), 1),
+    () =>
+      Math.min(
+        data.calories / Math.max(goals.calories, 1),
+        1
+      ),
     [data.calories, goals.calories]
   );
 
   const proteinProgress = useMemo(
-    () => Math.min(data.protein / Math.max(goals.protein, 1), 1),
+    () =>
+      Math.min(
+        data.protein / Math.max(goals.protein, 1),
+        1
+      ),
     [data.protein, goals.protein]
   );
 
   const carbsProgress = useMemo(
-    () => Math.min(data.carbs / Math.max(goals.carbs, 1), 1),
+    () =>
+      Math.min(
+        data.carbs / Math.max(goals.carbs, 1),
+        1
+      ),
     [data.carbs, goals.carbs]
   );
 
   const fatProgress = useMemo(
-    () => Math.min(data.fat / Math.max(goals.fat, 1), 1),
+    () =>
+      Math.min(
+        data.fat / Math.max(goals.fat, 1),
+        1
+      ),
     [data.fat, goals.fat]
   );
 
   const waterProgress = useMemo(
-    () => Math.min(data.water / Math.max(goals.water, 0.1), 1),
+    () =>
+      Math.min(
+        data.water / Math.max(goals.water, 0.1),
+        1
+      ),
     [data.water, goals.water]
   );
 
   const stepsProgress = useMemo(
-    () => Math.min(data.steps / Math.max(goals.steps, 1), 1),
+    () =>
+      Math.min(
+        data.steps / Math.max(goals.steps, 1),
+        1
+      ),
     [data.steps, goals.steps]
   );
 
@@ -328,7 +518,9 @@ export function useAppData() {
   const context = useContext(AppDataContext);
 
   if (!context) {
-    throw new Error("useAppData must be used inside AppDataProvider");
+    throw new Error(
+      "useAppData must be used inside AppDataProvider"
+    );
   }
 
   return context;
