@@ -1,1545 +1,1118 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
   Pressable,
-  ScrollView,
-  Platform,
   SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
-import GoalCard from "../../components/dashboard/GoalCard";
-import MacroCard from "../../components/dashboard/MacroCard";
-import QuickAction from "../../components/dashboard/QuickAction";
-import MealCard from "../../components/dashboard/MealCard";
-import WaterCard from "../../components/dashboard/WaterCard";
-import DailyTip from "../../components/dashboard/DailyTip";
 import BottomNav from "../../components/dashboard/BottomNav";
-
 import { useAuth } from "../../context/AuthContext";
-import { getUserProfile } from "../../storage/profileStorage";
-import { UserProfile } from "../../types/userProfile";
-import { calculateNutritionTarget } from "../../logic/nutritionCalculator";
-
-const isWeb = Platform.OS === "web";
-
-/*
-=========================================================
-RESPONSIVE DETECTION
-=========================================================
-*/
-
-function useIsMobileLayout() {
-  const [isMobile, setIsMobile] = useState(() => {
-    if (Platform.OS !== "web") {
-      return true;
-    }
-
-    if (typeof window === "undefined") {
-      return false;
-    }
-
-    return window.matchMedia(
-      "(max-width: 767px)"
-    ).matches;
-  });
-
-  useEffect(() => {
-    if (
-      Platform.OS !== "web" ||
-      typeof window === "undefined"
-    ) {
-      return;
-    }
-
-    const mediaQuery = window.matchMedia(
-      "(max-width: 767px)"
-    );
-
-    const updateLayout = () => {
-      setIsMobile(mediaQuery.matches);
-    };
-
-    updateLayout();
-
-    if (mediaQuery.addEventListener) {
-      mediaQuery.addEventListener(
-        "change",
-        updateLayout
-      );
-
-      return () => {
-        mediaQuery.removeEventListener(
-          "change",
-          updateLayout
-        );
-      };
-    }
-
-    mediaQuery.addListener(updateLayout);
-
-    return () => {
-      mediaQuery.removeListener(updateLayout);
-    };
-  }, []);
-
-  return isMobile;
-}
-
-/*
-=========================================================
-HOME DATA
-=========================================================
-*/
-
-type HomeData = {
-  firstName: string;
-  fullName: string;
-
-  /*
-   * These remain as the existing temporary
-   * gamification values until that system
-   * is connected later.
-   */
-  level: number;
-  xp: number;
-  xpGoal: number;
-
-  calories: {
-    consumed: number;
-    goal: number;
-  };
-
-  macros: {
-    protein: {
-      current: number;
-      target: number;
-    };
-
-    carbs: {
-      current: number;
-      target: number;
-    };
-
-    fats: {
-      current: number;
-      target: number;
-    };
-  };
-
-  water: {
-    consumed: number;
-    target: number;
-    glassesConsumed: number;
-    totalGlasses: number;
-  };
-
-  tip: string;
-};
-
-/*
-=========================================================
-HOME
-=========================================================
-*/
+import { useAppData } from "../../context/AppDataContext";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function HomeScreen() {
-  const isMobile = useIsMobileLayout();
-
   const { user } = useAuth();
+  const {
+    data,
+    goals,
+    meals,
+    calorieProgress,
+    proteinProgress,
+    carbsProgress,
+    fatProgress,
+    waterProgress,
+    stepsProgress,
+    overallProgress,
+  } = useAppData();
+  const { colors } = useTheme();
 
-  const [profile, setProfile] =
-    useState<UserProfile | null>(null);
+  const fullName = user?.fullName?.trim() || "TenaFit User";
+  const firstName = fullName.split(" ")[0] || "there";
 
-  const [loadingProfile, setLoadingProfile] =
-    useState(true);
+  const caloriesRemaining = Math.max(
+    goals.calories - data.calories,
+    0
+  );
 
-  /*
-   * Load the user's saved onboarding
-   * profile when Home opens.
-   */
-  useEffect(() => {
-    let mounted = true;
+  const mealCount = meals.length;
 
-    const loadProfile = async () => {
-      try {
-        const savedProfile =
-          await getUserProfile();
+  const getGreeting = () => {
+    const hour = new Date().getHours();
 
-        if (mounted) {
-          setProfile(savedProfile);
-        }
-      } catch (error) {
-        console.error(
-          "Failed to load Home profile:",
-          error
-        );
-      } finally {
-        if (mounted) {
-          setLoadingProfile(false);
-        }
-      }
-    };
-
-    loadProfile();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-/*
-   * If there is no profile, send the user
-   * back to onboarding.
-   */
-  useEffect(() => {
-    if (
-      !loadingProfile &&
-      !profile
-    ) {
-      router.replace(
-        "/onboarding/personal-info"
-      );
+    if (hour < 12) {
+      return "Good morning";
     }
-  }, [
-    loadingProfile,
-    profile,
-  ]);
 
-  /*
-   * Do not render the dashboard until
-   * the profile has been loaded.
-   */
-  if (
-    loadingProfile ||
-    !profile
-  ) {
-    return (
-      <SafeAreaView
-        style={styles.safeArea}
-      >
-        <View
-          style={
-            styles.loadingContainer
-          }
-        >
-          <Text
-            style={
-              styles.loadingText
-            }
-          >
-            {loadingProfile
-              ? "Loading your TenaFit profile..."
-              : "Redirecting to setup..."}
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+    if (hour < 18) {
+      return "Good afternoon";
+    }
 
-  /*
-   * The account name comes from AuthContext.
-   */
-  const fullName =
-    user?.fullName?.trim() ||
-    "TenaFit User";
-
-  const firstName =
-    fullName.split(" ")[0] ||
-    "there";
-
-  /*
-   * Calculate personalized nutrition
-   * targets using the existing nutrition
-   * calculator.
-   */
-  const nutrition =
-    calculateNutritionTarget({
-      age: profile.age,
-
-      gender: profile.gender,
-
-      weightKg:
-        profile.weightKg,
-
-      heightCm:
-        profile.heightCm,
-
-      activityLevel:
-        profile.activityLevel,
-
-      goal:
-        profile.goal,
-    });
-
-  /*
-   * Build the data structure used by
-   * the existing Home UI.
-   */
-  const homeData: HomeData = {
-    firstName,
-
-    fullName,
-
-    /*
-     * Keep the existing gamification
-     * values for now.
-     */
-    level: 12,
-    xp: 2850,
-    xpGoal: 5000,
-
-    /*
-     * Meal tracking is not connected yet.
-     * Therefore consumed calories start
-     * at zero.
-     *
-     * The calorie TARGET is real and
-     * comes from the user's profile.
-     */
-    calories: {
-      consumed: 0,
-      goal:
-        nutrition.targetCalories,
-    },
-
-    /*
-     * Macro TARGETS are personalized.
-     *
-     * Current consumed values remain
-     * zero until Tracking is implemented.
-     */
-    macros: {
-      protein: {
-        current: 0,
-        target:
-          nutrition.proteinGrams,
-      },
-
-      carbs: {
-        current: 0,
-        target:
-          nutrition.carbohydrateGrams,
-      },
-
-      fats: {
-        current: 0,
-        target:
-          nutrition.fatGrams,
-      },
-    },
-
-    /*
-     * Water tracking will be connected
-     * during the Tracking step.
-     */
-    water: {
-      consumed: 0,
-      target: 2.5,
-      glassesConsumed: 0,
-      totalGlasses: 6,
-    },
-
-    tip:
-      "Stay consistent, even on your off days. Your future self will thank you.",
+    return "Good evening";
   };
 
   return (
     <SafeAreaView
-      style={styles.safeArea}
+      style={[
+        styles.safeArea,
+        { backgroundColor: colors.background },
+      ]}
     >
-      <View
-        style={[
-          styles.screen,
+      <View style={styles.root}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.content}
+        >
+          <View style={styles.header}>
+            <View style={styles.brandRow}>
+              <View
+                style={[
+                  styles.logo,
+                  { backgroundColor: colors.primary },
+                ]}
+              >
+                <Ionicons
+                  name="fitness"
+                  size={22}
+                  color="#111111"
+                />
+              </View>
 
-          isMobile
-            ? styles.mobileScreen
-            : styles.desktopScreen,
-        ]}
-      >
-        {isMobile ? (
-          <MobileHome
-            data={homeData}
-          />
-        ) : (
-          <DesktopHome
-            data={homeData}
-          />
-        )}
+              <Text
+                style={[
+                  styles.brandText,
+                  { color: colors.text },
+                ]}
+              >
+                Tena
+                <Text style={{ color: colors.primary }}>
+                  Fit
+                </Text>
+              </Text>
+            </View>
+
+            <View style={styles.headerActions}>
+              <Pressable
+                style={[
+                  styles.iconButton,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                  },
+                ]}
+                onPress={() =>
+                  router.push("/dashboard/settings")
+                }
+              >
+                <Ionicons
+                  name="settings-outline"
+                  size={21}
+                  color={colors.text}
+                />
+              </Pressable>
+
+              <Pressable
+                style={[
+                  styles.avatar,
+                  { backgroundColor: colors.primary },
+                ]}
+                onPress={() =>
+                  router.push("/dashboard/profile")
+                }
+              >
+                <Text style={styles.avatarText}>
+                  {firstName.charAt(0).toUpperCase()}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+
+          <View style={styles.greeting}>
+            <Text
+              style={[
+                styles.greetingTitle,
+                { color: colors.text },
+              ]}
+            >
+              {getGreeting()}, {firstName} 👋
+            </Text>
+
+            <Text
+              style={[
+                styles.greetingSubtitle,
+                { color: colors.subtext },
+              ]}
+            >
+              Stay consistent and keep moving toward your goals.
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.hero,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <View style={styles.heroTop}>
+              <View style={styles.heroText}>
+                <Text
+                  style={[
+                    styles.heroLabel,
+                    { color: colors.primary },
+                  ]}
+                >
+                  TODAY'S GOAL
+                </Text>
+
+                <Text
+                  style={[
+                    styles.heroTitle,
+                    { color: colors.text },
+                  ]}
+                >
+                  Keep your nutrition
+                  {"\n"}on track
+                </Text>
+
+                <Text
+                  style={[
+                    styles.heroDescription,
+                    { color: colors.subtext },
+                  ]}
+                >
+                  {caloriesRemaining > 0
+                    ? `${Math.round(
+                        caloriesRemaining
+                      )} calories remaining today`
+                    : "You've reached your calorie target"}
+                </Text>
+              </View>
+
+              <View
+                style={[
+                  styles.heroCircle,
+                  { borderColor: colors.primary },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.heroPercentage,
+                    { color: colors.text },
+                  ]}
+                >
+                  {overallProgress}%
+                </Text>
+
+                <Text
+                  style={[
+                    styles.heroComplete,
+                    { color: colors.subtext },
+                  ]}
+                >
+                  done
+                </Text>
+              </View>
+            </View>
+
+            <View
+              style={[
+                styles.heroProgressTrack,
+                { backgroundColor: colors.border },
+              ]}
+            >
+              <View
+                style={[
+                  styles.heroProgressFill,
+                  {
+                    width: `${overallProgress}%`,
+                    backgroundColor: colors.primary,
+                  },
+                ]}
+              />
+            </View>
+          </View>
+
+          <View style={styles.sectionHeader}>
+            <Text
+              style={[
+                styles.sectionTitle,
+                { color: colors.text },
+              ]}
+            >
+              Today's nutrition
+            </Text>
+
+            <Pressable
+              onPress={() =>
+                router.push("/dashboard/progress")
+              }
+            >
+              <Text
+                style={[
+                  styles.viewAll,
+                  { color: colors.primary },
+                ]}
+              >
+                View progress
+              </Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.statsGrid}>
+            <StatCard
+              icon="flame-outline"
+              title="Calories"
+              value={Math.round(data.calories).toString()}
+              target={Math.round(goals.calories).toString()}
+              unit="kcal"
+              progress={calorieProgress}
+              colors={colors}
+            />
+
+            <StatCard
+              icon="fitness-outline"
+              title="Protein"
+              value={Math.round(data.protein).toString()}
+              target={Math.round(goals.protein).toString()}
+              unit="g"
+              progress={proteinProgress}
+              colors={colors}
+            />
+
+            <StatCard
+              icon="leaf-outline"
+              title="Carbs"
+              value={Math.round(data.carbs).toString()}
+              target={Math.round(goals.carbs).toString()}
+              unit="g"
+              progress={carbsProgress}
+              colors={colors}
+            />
+
+            <StatCard
+              icon="water-outline"
+              title="Fat"
+              value={Math.round(data.fat).toString()}
+              target={Math.round(goals.fat).toString()}
+              unit="g"
+              progress={fatProgress}
+              colors={colors}
+            />
+          </View>
+
+          <View style={styles.sectionHeader}>
+            <Text
+              style={[
+                styles.sectionTitle,
+                { color: colors.text },
+              ]}
+            >
+              Quick actions
+            </Text>
+          </View>
+
+          <View style={styles.actionRow}>
+            <ActionCard
+              icon="restaurant-outline"
+              title="Add meal"
+              subtitle="Track your food"
+              colors={colors}
+              onPress={() =>
+                router.push("/dashboard/meals")
+              }
+            />
+
+            <ActionCard
+              icon="scan-outline"
+              title="Scan food"
+              subtitle="Coming soon"
+              colors={colors}
+              onPress={() =>
+                router.push("/dashboard/meals")
+              }
+            />
+          </View>
+
+          <View style={styles.sectionHeader}>
+            <Text
+              style={[
+                styles.sectionTitle,
+                { color: colors.text },
+              ]}
+            >
+              Daily activity
+            </Text>
+          </View>
+
+          <View style={styles.activityRow}>
+            <ActivityCard
+              icon="water-outline"
+              title="Water"
+              value={`${data.water.toFixed(1)} L`}
+              target={`${goals.water.toFixed(1)} L`}
+              progress={waterProgress}
+              colors={colors}
+              onPress={() =>
+                router.push("/dashboard/water")
+              }
+            />
+
+            <ActivityCard
+              icon="walk-outline"
+              title="Steps"
+              value={data.steps.toLocaleString()}
+              target={goals.steps.toLocaleString()}
+              progress={stepsProgress}
+              colors={colors}
+              onPress={() =>
+                router.push("/dashboard/workouts")
+              }
+            />
+          </View>
+
+          <View
+            style={[
+              styles.mealCard,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.mealIcon,
+                { backgroundColor: `${colors.primary}18` },
+              ]}
+            >
+              <Ionicons
+                name="restaurant-outline"
+                size={22}
+                color={colors.primary}
+              />
+            </View>
+
+            <View style={styles.mealInfo}>
+              <Text
+                style={[
+                  styles.mealTitle,
+                  { color: colors.text },
+                ]}
+              >
+                {mealCount === 0
+                  ? "No meals logged"
+                  : `${mealCount} meals logged today`}
+              </Text>
+
+              <Text
+                style={[
+                  styles.mealSubtitle,
+                  { color: colors.subtext },
+                ]}
+              >
+                {mealCount === 0
+                  ? "Start tracking your food to see your daily nutrition."
+                  : `${Math.round(
+                      data.calories
+                    )} calories recorded today`}
+              </Text>
+            </View>
+
+            <Pressable
+              style={[
+                styles.arrowButton,
+                { backgroundColor: `${colors.primary}18` },
+              ]}
+              onPress={() => router.push("/dashboard/meals")}
+            >
+              <Ionicons
+                name="chevron-forward"
+                size={18}
+                color={colors.primary}
+              />
+            </Pressable>
+          </View>
+
+          <View
+            style={[
+              {
+                width: `${Math.min(overallProgress, 100)}%`,
+                backgroundColor: colors.primary,
+              },
+            ]}
+          >
+            <View style={styles.tipIcon}>
+              <Ionicons
+                name="bulb-outline"
+                size={23}
+                color="#111111"
+              />
+            </View>
+
+            <View style={styles.tipContent}>
+              <Text
+                style={[
+                  styles.tipLabel,
+                  { backgroundColor: `${colors.primary}18` },
+                ]}
+              >
+                DAILY TIP
+              </Text>
+
+              <Text style={styles.tipText}>
+                Stay consistent, even on your off days. Small habits build lasting results.
+              </Text>
+            </View>
+          </View>
+        </ScrollView>
       </View>
     </SafeAreaView>
   );
 }
 
-/*
-=========================================================
-MOBILE HOME
-=========================================================
-*/
-
-function MobileHome({
-  data,
-}: {
-  data: HomeData;
-}) {
-  return (
-    <View style={styles.mobileRoot}>
-      <ScrollView
-        showsVerticalScrollIndicator={
-          false
-        }
-        contentContainerStyle={
-          styles.mobileContent
-        }
-      >
-        {/* HEADER */}
-
-        <View
-          style={
-            styles.mobileHeader
-          }
-        >
-          <View
-            style={styles.logoRow}
-          >
-            <View
-              style={styles.logoIcon}
-            >
-              <Ionicons
-                name="fitness"
-                size={27}
-                color="#FFC107"
-              />
-            </View>
-<Text
-              style={styles.logoText}
-            >
-              Tena
-              <Text
-                style={
-                  styles.logoAccent
-                }
-              >
-                Fit
-              </Text>
-            </Text>
-          </View>
-
-          <View
-            style={
-              styles.headerActions
-            }
-          >
-            <Pressable
-              style={
-                styles.notificationButton
-              }
-            >
-              <Ionicons
-                name="notifications-outline"
-                size={26}
-                color="#FFFFFF"
-              />
-
-              <View
-                style={
-                  styles.notificationDot
-                }
-              />
-            </Pressable>
-
-            <Pressable
-              style={styles.mobileAvatar}
-            >
-              <Ionicons
-                name="person"
-                size={24}
-                color="#FFFFFF"
-              />
-            </Pressable>
-          </View>
-        </View>
-
-        {/* GREETING */}
-
-        <View
-          style={
-            styles.mobileGreeting
-          }
-        >
-          <Text
-            style={
-              styles.mobileGreetingTitle
-            }
-          >
-            Good evening,{" "}
-            {data.firstName} 👋
-          </Text>
-
-          <Text
-            style={
-              styles.mobileGreetingSubtitle
-            }
-          >
-            Ready to stay on track and
-            crush your goals?
-          </Text>
-        </View>
-
-        {/* GOAL */}
-
-        <GoalCard
-          mobile
-          consumed={
-            data.calories.consumed
-          }
-          goal={
-            data.calories.goal
-          }
-        />
-
-        {/* MACROS */}
-
-        <View
-          style={
-            styles.mobileMacroRow
-          }
-        >
-          <MacroCard
-            icon="fitness-outline"
-            title="PROTEIN"
-            value={
-              data.macros.protein.current
-            }
-            target={
-              data.macros.protein.target
-            }
-            type="protein"
-          />
-
-          <MacroCard
-            icon="leaf-outline"
-            title="CARBS"
-            value={
-              data.macros.carbs.current
-            }
-            target={
-              data.macros.carbs.target
-            }
-            type="carbs"
-          />
-
-          <MacroCard
-            icon="water-outline"
-            title="FATS"
-            value={
-              data.macros.fats.current
-            }
-            target={
-              data.macros.fats.target
-            }
-            type="fats"
-          />
-        </View>
-
-        {/* QUICK ACTIONS */}
-
-        <Text
-          style={
-            styles.mobileSectionTitle
-          }
-        >
-          QUICK ACTIONS
-        </Text>
-
-        <View
-          style={
-            styles.mobileQuickActions
-          }
-        >
-          <QuickAction
-            icon="add"
-            title="Add Meal"
-            subtitle="Log your food"
-            onPress={() => {
-              console.log(
-                "Add Meal navigation will be connected in the Tracking step."
-              );
-            }}
-          />
-
-          <QuickAction
-            icon="scan-outline"
-            title="Scan Food"
-            subtitle="Scan barcode or QR"
-            onPress={() => {
-              console.log(
-                "Scan Food navigation will be connected in the Scanner step."
-              );
-            }}
-          />
-        </View>
-
-        {/* LOWER */}
-
-        <View
-          style={styles.mobileLower}
-        >
-          <MealCard />
-
-          <WaterCard
-            consumed={
-              data.water.consumed
-            }
-            target={
-              data.water.target
-            }
-            glassesConsumed={
-              data.water.glassesConsumed
-            }
-            totalGlasses={
-              data.water.totalGlasses
-            }
-          />
-<DailyTip
-            tip={data.tip}
-          />
-        </View>
-      </ScrollView>
-
-      <BottomNav
-        onAddPress={() => {
-          console.log(
-            "Add Meal navigation will be connected in the Tracking step."
-          );
-        }}
-      />
-    </View>
-  );
-}
-
-/*
-=========================================================
-DESKTOP HOME
-=========================================================
-*/
-
-function DesktopHome({
-  data,
-}: {
-  data: HomeData;
-}) {
-  return (
-    <View
-      style={styles.desktopRoot}
-    >
-      <Sidebar data={data} />
-
-      <View
-        style={styles.desktopMain}
-      >
-        <ScrollView
-          showsVerticalScrollIndicator={
-            false
-          }
-          contentContainerStyle={
-            styles.desktopContent
-          }
-        >
-          {/* TOP HEADER */}
-
-          <View
-            style={
-              styles.desktopHeader
-            }
-          >
-            <View>
-              <Text
-                style={
-                  styles.desktopGreetingTitle
-                }
-              >
-                Good evening,{" "}
-                {data.firstName} 👋
-              </Text>
-
-              <Text
-                style={
-                  styles.desktopGreetingSubtitle
-                }
-              >
-                Ready to stay on track
-                and crush your goals?
-              </Text>
-            </View>
-
-            <View
-              style={
-                styles.desktopHeaderActions
-              }
-            >
-              <Pressable
-                style={
-                  styles.notificationButton
-                }
-              >
-                <Ionicons
-                  name="notifications-outline"
-                  size={27}
-                  color="#FFFFFF"
-                />
-
-                <View
-                  style={
-                    styles.notificationDot
-                  }
-                />
-              </Pressable>
-
-              <Pressable
-                style={
-                  styles.desktopAvatar
-                }
-              >
-                <Ionicons
-                  name="person"
-                  size={25}
-                  color="#FFFFFF"
-                />
-              </Pressable>
-            </View>
-          </View>
-
-          {/* TOP GRID */}
-
-          <View
-            style={
-              styles.desktopTopGrid
-            }
-          >
-            <View
-              style={
-                styles.desktopGoalColumn
-              }
-            >
-              <GoalCard
-                consumed={
-                  data.calories.consumed
-                }
-                goal={
-                  data.calories.goal
-                }
-              />
-            </View>
-
-            <View
-              style={
-                styles.desktopRightTop
-              }
-            >
-              <View
-                style={
-                  styles.desktopMacroRow
-                }
-              >
-                <MacroCard
-                  icon="fitness-outline"
-                  title="PROTEIN"
-                  value={
-                    data.macros.protein.current
-                  }
-                  target={
-                    data.macros.protein.target
-                  }
-                  type="protein"
-                />
-
-                <MacroCard
-                  icon="leaf-outline"
-                  title="CARBS"
-                  value={
-                    data.macros.carbs.current
-                  }
-                  target={
-                    data.macros.carbs.target
-                  }
-                  type="carbs"
-                />
-
-                <MacroCard
-                  icon="water-outline"
-                  title="FATS"
-                  value={
-                    data.macros.fats.current
-                  }
-                  target={
-                    data.macros.fats.target
-                  }
-                  type="fats"
-                />
-              </View>
-<Text
-                style={
-                  styles.desktopSectionTitle
-                }
-              >
-                QUICK ACTIONS
-              </Text>
-
-              <View
-                style={
-                  styles.desktopQuickActions
-                }
-              >
-                <QuickAction
-                  icon="add"
-                  title="Add Meal"
-                  subtitle="Log your food"
-                  onPress={() =>
-                    router.push("/")
-                  }
-                />
-
-                <QuickAction
-                  icon="scan-outline"
-                  title="Scan Food"
-                  subtitle="Scan barcode or QR"
-                  onPress={() =>
-                    router.push("/")
-                  }
-                />
-              </View>
-            </View>
-          </View>
-
-          {/* LOWER GRID */}
-
-          <View
-            style={
-              styles.desktopLowerGrid
-            }
-          >
-            <MealCard />
-
-            <View
-              style={
-                styles.desktopLowerRight
-              }
-            >
-              <WaterCard
-                consumed={
-                  data.water.consumed
-                }
-                target={
-                  data.water.target
-                }
-                glassesConsumed={
-                  data.water.glassesConsumed
-                }
-                totalGlasses={
-                  data.water.totalGlasses
-                }
-              />
-
-              <DailyTip
-                tip={data.tip}
-              />
-            </View>
-          </View>
-        </ScrollView>
-      </View>
-    </View>
-  );
-}
-
-/*
-=========================================================
-SIDEBAR
-=========================================================
-*/
-
-function Sidebar({
-  data,
-}: {
-  data: HomeData;
-}) {
-  return (
-    <View
-      style={styles.sidebar}
-    >
-      <View
-        style={styles.sidebarLogo}
-      >
-        <Ionicons
-          name="fitness"
-          size={31}
-          color="#FFC107"
-        />
-
-        <Text
-          style={
-            styles.sidebarLogoText
-          }
-        >
-          Tena
-          <Text
-            style={
-              styles.logoAccent
-            }
-          >
-            Fit
-          </Text>
-        </Text>
-      </View>
-
-      <View
-        style={
-          styles.sidebarNavigation
-        }
-      >
-        <SidebarItem
-          icon="home"
-          label="Home"
-          active
-          onPress={() =>
-            router.push("/home")
-          }
-        />
-
-        <SidebarItem
-          icon="calendar-outline"
-          label="Plan"
-          onPress={() =>
-            router.push(
-              "/dashboard/plan"
-            )
-          }
-        />
-
-        <SidebarItem
-          icon="bar-chart-outline"
-          label="Progress"
-          onPress={() =>
-            router.push(
-              "/dashboard/progress"
-            )
-          }
-        />
-
-        <SidebarItem
-          icon="restaurant-outline"
-          label="Meals"
-          onPress={() =>
-            router.push(
-              "/dashboard/meals"
-            )
-          }
-        />
-
-        <SidebarItem
-          icon="barbell-outline"
-          label="Workouts"
-          onPress={() =>
-            router.push(
-              "/dashboard/workouts"
-            )
-          }
-        />
-
-        <SidebarItem
-          icon="water-outline"
-          label="Water"
-          onPress={() =>
-            router.push(
-              "/dashboard/water"
-            )
-          }
-        />
-
-        <SidebarItem
-          icon="document-text-outline"
-          label="Reports"
-          onPress={() =>
-            router.push(
-              "/dashboard/reports"
-            )
-          }
-        />
-
-        <SidebarItem
-          icon="settings-outline"
-          label="Settings"
-          onPress={() =>
-            router.push(
-              "/dashboard/settings"
-            )
-          }
-        />
-      </View>
-<View
-        style={styles.premiumCard}
-      >
-        <Ionicons
-          name="diamond"
-          size={25}
-          color="#FFC107"
-        />
-
-        <Text
-          style={
-            styles.premiumTitle
-          }
-        >
-          Go Premium
-        </Text>
-
-        <Text
-          style={styles.premiumText}
-        >
-          Unlock AI recommendations,
-          meal scanner, and more.
-        </Text>
-
-        <Pressable
-          style={
-            styles.upgradeButton
-          }
-        >
-          <Text
-            style={
-              styles.upgradeText
-            }
-          >
-            Upgrade Now
-          </Text>
-        </Pressable>
-      </View>
-
-      <View
-        style={styles.sidebarUser}
-      >
-        <View
-          style={
-            styles.sidebarUserAvatar
-          }
-        >
-          <Ionicons
-            name="person"
-            size={22}
-            color="#FFFFFF"
-          />
-        </View>
-
-        <View
-          style={
-            styles.sidebarUserInfo
-          }
-        >
-          <Text
-            style={
-              styles.sidebarUserName
-            }
-          >
-            {data.fullName}
-          </Text>
-
-          <Text
-            style={
-              styles.sidebarLevel
-            }
-          >
-            Level {data.level}
-          </Text>
-
-          <View
-            style={styles.xpTrack}
-          >
-            <View
-              style={[
-                styles.xpFill,
-                {
-                  width: `${
-                    Math.min(
-                      data.xp /
-                        data.xpGoal,
-                      1
-                    ) * 100
-                  }%`,
-                },
-              ]}
-            />
-          </View>
-
-          <Text
-            style={styles.xpText}
-          >
-            {data.xp.toLocaleString()} /{" "}
-            {data.xpGoal.toLocaleString()} XP
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-function SidebarItem({
+function StatCard({
   icon,
-  label,
-  active = false,
-  onPress,
+  title,
+  value,
+  target,
+  unit,
+  progress,
+  colors,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  active?: boolean;
-  onPress?: () => void;
+  title: string;
+  value: string;
+  target: string;
+  unit: string;
+  progress: number;
+  colors: any;
 }) {
   return (
-    <Pressable
-      onPress={onPress}
+    <View
       style={[
-        styles.sidebarItem,
-        active &&
-          styles.sidebarItemActive,
+        styles.statCard,
+        {
+          backgroundColor: colors.card,
+          borderColor: colors.border,
+        },
       ]}
     >
-      <Ionicons
-        name={icon}
-        size={23}
-        color={
-          active
-            ? "#FFC107"
-            : "#A8ADB8"
-        }
-      />
+      <View style={styles.statHeader}>
+        <View
+          style={[
+            styles.statIcon,
+            { backgroundColor: `${colors.primary}18` },
+          ]}
+        >
+          <Ionicons
+            name={icon}
+            size={18}
+            color={colors.primary}
+          />
+        </View>
+
+        <Text
+          style={[
+            styles.statTitle,
+            { color: colors.subtext },
+          ]}
+        >
+          {title}
+        </Text>
+      </View>
 
       <Text
         style={[
-          styles.sidebarItemText,
-          active &&
-            styles.sidebarItemTextActive,
+          styles.statValue,
+          { color: colors.text },
         ]}
       >
-        {label}
+        {value}
+        <Text
+          style={[
+            styles.statUnit,
+            { color: colors.subtext },
+          ]}
+        >
+          {" "}
+          {unit}
+        </Text>
+      </Text>
+
+      <Text
+        style={[
+          styles.statTarget,
+          { color: colors.subtext },
+        ]}
+      >
+        of {target} {unit}
+      </Text>
+
+      <View
+        style={[
+          styles.statTrack,
+          { backgroundColor: colors.border },
+        ]}
+      >
+        <View
+          style={[
+            styles.statFill,
+            {
+              width: `${Math.min(progress * 100, 100)}%`,
+              backgroundColor: colors.primary,
+            },
+          ]}
+        />
+      </View>
+    </View>
+  );
+}
+
+function ActionCard({
+  icon,
+  title,
+  subtitle,
+  colors,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  subtitle: string;
+  colors: any;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={[
+        styles.actionCard,
+        {
+          backgroundColor: colors.card,
+          borderColor: colors.border,
+        },
+      ]}
+      onPress={onPress}
+    >
+      <View
+        style={[
+          styles.actionIcon,
+          { backgroundColor: colors.primary },
+        ]}
+      >
+        <Ionicons
+          name={icon}
+          size={22}
+          color="#111111"
+        />
+      </View>
+
+      <Text
+        style={[
+          styles.actionTitle,
+          { color: colors.text },
+        ]}
+      >
+        {title}
+      </Text>
+
+      <Text
+        style={[
+          styles.actionSubtitle,
+          { color: colors.subtext },
+        ]}
+      >
+        {subtitle}
       </Text>
     </Pressable>
   );
 }
+function ActivityCard({
+  icon,
+  title,
+  value,
+  target,
+  progress,
+  colors,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  value: string;
+  target: string;
+  progress: number;
+  colors: any;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={[
+        styles.activityCard,
+        {
+          backgroundColor: colors.card,
+          borderColor: colors.border,
+        },
+      ]}
+      onPress={onPress}
+    >
+      <View
+        style={[
+          styles.activityIcon,
+          { backgroundColor: `${colors.primary}18` },
+        ]}
+      >
+        <Ionicons
+          name={icon}
+          size={20}
+          color={colors.primary}
+        />
+      </View>
 
-/*
-=========================================================
-STYLES
-=========================================================
-*/
+      <Text
+        style={[
+          styles.activityTitle,
+          { color: colors.subtext },
+        ]}
+      >
+        {title}
+      </Text>
+
+      <Text
+        style={[
+          styles.activityValue,
+          { color: colors.text },
+        ]}
+      >
+        {value}
+      </Text>
+
+      <Text
+        style={[
+          styles.activityTarget,
+          { color: colors.subtext },
+        ]}
+      >
+        of {target}
+      </Text>
+
+      <View
+        style={[
+          styles.activityTrack,
+          { backgroundColor: colors.border },
+        ]}
+      >
+        <View
+          style={[
+            styles.activityFill,
+            {
+              width: `${Math.min(progress * 100, 100)}%`,
+              backgroundColor: colors.primary,
+            },
+          ]}
+        />
+      </View>
+    </Pressable>
+  );
+}
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    width: "100%",
-    backgroundColor: "#05070B",
   },
 
-  screen: {
+  root: {
     flex: 1,
-    width: "100%",
-    backgroundColor: "#05070B",
   },
 
-  mobileScreen: {
-    width: "100%",
+  content: {
+    paddingHorizontal: 18,
+    paddingTop: 12,
+    paddingBottom: 110,
   },
 
-  desktopScreen: {
-    width: "100%",
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 25,
   },
 
-  loadingContainer: {
-    flex: 1,
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  logo: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#05070B",
   },
 
-  loadingText: {
-    color: "#8B8F98",
-    fontSize: 15,
-    fontWeight: "600",
-  },
-
-  mobileRoot: {
-    flex: 1,
-    width: "100%",
-  },
-
-  mobileContent: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 115,
-    width: "100%",
-  },
-
-  mobileHeader: {
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 24,
-  },
-
-  logoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  logoIcon: {
-    marginRight: 8,
-  },
-
-  logoText: {
-    color: "#FFFFFF",
-    fontSize: 27,
+  brandText: {
+    fontSize: 21,
     fontWeight: "900",
-    letterSpacing: -1,
-  },
-
-  logoAccent: {
-    color: "#FFC107",
+    marginLeft: 10,
   },
 
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 13,
-  },
-
-  notificationButton: {
-    position: "relative",
-    padding: 5,
-  },
-notificationDot: {
-    position: "absolute",
-    right: 4,
-    top: 2,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#FFC107",
-  },
-
-  mobileAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#22252A",
-    borderWidth: 2,
-    borderColor: "#FFC107",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  mobileGreeting: {
-    marginBottom: 25,
-  },
-
-  mobileGreetingTitle: {
-    color: "#FFFFFF",
-    fontSize: 28,
-    fontWeight: "900",
-    letterSpacing: -0.7,
-  },
-
-  mobileGreetingSubtitle: {
-    color: "#A9AFBA",
-    fontSize: 15,
-    marginTop: 5,
-    lineHeight: 21,
-  },
-
-  mobileMacroRow: {
-    width: "100%",
-    flexDirection: "row",
     gap: 9,
-    marginBottom: 25,
   },
 
-  mobileSectionTitle: {
-    color: "#FFFFFF",
-    fontSize: 17,
-    fontWeight: "900",
-    marginBottom: 10,
-  },
-
-  mobileQuickActions: {
-    width: "100%",
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 18,
-  },
-
-  mobileLower: {
-    width: "100%",
-    gap: 16,
-  },
-
-  desktopRoot: {
-    flex: 1,
-    width: "100%",
-    flexDirection: "row",
-    backgroundColor: "#05070B",
-  },
-
-  sidebar: {
-    width: 245,
-    minWidth: 245,
-    height: "100%",
-    backgroundColor: "#080A0F",
-    borderRightWidth: 1,
-    borderRightColor: "#252A34",
-    paddingHorizontal: 20,
-    paddingTop: 27,
-    paddingBottom: 20,
-  },
-
-  sidebarLogo: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 35,
-    paddingHorizontal: 5,
-  },
-
-  sidebarLogoText: {
-    color: "#FFFFFF",
-    fontSize: 27,
-    fontWeight: "900",
-    marginLeft: 9,
-    letterSpacing: -1,
-  },
-
-  sidebarNavigation: {
-    gap: 8,
-  },
-
-  sidebarItem: {
-    height: 54,
-    borderRadius: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-  },
-
-  sidebarItemActive: {
-    backgroundColor: "#171A22",
-  },
-
-  sidebarItemText: {
-    color: "#A9AFBA",
-    fontSize: 15,
-    fontWeight: "600",
-    marginLeft: 16,
-  },
-
-  sidebarItemTextActive: {
-    color: "#FFC107",
-    fontWeight: "800",
-  },
-
-  premiumCard: {
-    marginTop: "auto",
+  iconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
     borderWidth: 1,
-    borderColor: "#393426",
-    borderRadius: 18,
-    backgroundColor: "#11110D",
-    padding: 15,
-    alignItems: "center",
-  },
-
-  premiumTitle: {
-    color: "#FFFFFF",
-    fontSize: 17,
-    fontWeight: "900",
-    marginTop: 7,
-  },
-
-  premiumText: {
-    color: "#A9AFBA",
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: "center",
-    marginTop: 7,
-  },
-
-  upgradeButton: {
-    width: "100%",
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: "#FFC107",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 12,
   },
 
-  upgradeText: {
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  avatarText: {
     color: "#111111",
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: "900",
   },
 
-  sidebarUser: {
-    marginTop: 18,
-    borderTopWidth: 1,
-    borderTopColor: "#242832",
-    paddingTop: 16,
+  greeting: {
+    marginBottom: 20,
+  },
+
+  greetingTitle: {
+    fontSize: 25,
+    fontWeight: "900",
+  },
+
+  greetingSubtitle: {
+    fontSize: 12,
+    marginTop: 6,
+    lineHeight: 18,
+  },
+
+  hero: {
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 20,
+    marginBottom: 27,
+  },
+
+  heroTop: {
     flexDirection: "row",
     alignItems: "center",
   },
 
-  sidebarUserAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 2,
-    borderColor: "#FFC107",
-    backgroundColor: "#22252A",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  sidebarUserInfo: {
+  heroText: {
     flex: 1,
-    marginLeft: 11,
   },
 
-  sidebarUserName: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "800",
+  heroLabel: {
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.2,
   },
 
-  sidebarLevel: {
-    color: "#9CA3AF",
-    fontSize: 11,
-    marginTop: 2,
-  },
-
-  xpTrack: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#252A33",
-    overflow: "hidden",
+  heroTitle: {
+    fontSize: 22,
+    lineHeight: 27,
+    fontWeight: "900",
     marginTop: 8,
   },
 
-  xpFill: {
-    height: "100%",
-    backgroundColor: "#FFC107",
-    borderRadius: 3,
+  heroDescription: {
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 9,
   },
 
-  xpText: {
-    color: "#9CA3AF",
-    fontSize: 10,
-    marginTop: 5,
-  },
-
-  desktopMain: {
-    flex: 1,
-    width: 0,
-    backgroundColor: "#05070B",
-  },
-
-  desktopContent: {
-    width: "100%",
-    paddingHorizontal: 36,
-    paddingTop: 28,
-    paddingBottom: 35,
-  },
-
-  desktopHeader: {
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "space-between",
+  heroCircle: {
+    width: 91,
+    height: 91,
+    borderRadius: 46,
+    borderWidth: 6,
     alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 12,
+  },
+
+  heroPercentage: {
+    fontSize: 20,
+    fontWeight: "900",
+  },
+
+  heroComplete: {
+    fontSize: 9,
+    fontWeight: "700",
+    marginTop: 2,
+    textTransform: "uppercase",
+  },
+
+  heroProgressTrack: {
+    height: 8,
+    borderRadius: 8,
+    overflow: "hidden",
+    marginTop: 20,
+  },
+
+  heroProgressFill: {
+    height: "100%",
+    borderRadius: 8,
+  },
+
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: "900",
+  },
+
+  viewAll: {
+    fontSize: 10,
+    fontWeight: "800",
+  },
+statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
     marginBottom: 27,
   },
-desktopGreetingTitle: {
-    color: "#FFFFFF",
-    fontSize: 30,
-    fontWeight: "900",
-    letterSpacing: -0.7,
+
+  statCard: {
+    width: "48.5%",
+    minHeight: 137,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 14,
   },
 
-  desktopGreetingSubtitle: {
-    color: "#A9AFBA",
-    fontSize: 15,
-    marginTop: 5,
-  },
-
-  desktopHeaderActions: {
+  statHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 18,
   },
 
-  desktopAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#22252A",
-    borderWidth: 2,
-    borderColor: "#FFC107",
+  statIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  desktopTopGrid: {
-    width: "100%",
-    flexDirection: "row",
-    gap: 22,
-    alignItems: "flex-start",
-    marginBottom: 25,
+  statTitle: {
+    fontSize: 10,
+    fontWeight: "800",
+    marginLeft: 8,
   },
 
-  desktopGoalColumn: {
-    flex: 1.45,
-    minWidth: 0,
-  },
-
-  desktopRightTop: {
-    flex: 1,
-    minWidth: 0,
-  },
-
-  desktopMacroRow: {
-    width: "100%",
-    flexDirection: "row",
-    gap: 12,
-  },
-
-  desktopSectionTitle: {
-    color: "#FFFFFF",
-    fontSize: 16,
+  statValue: {
+    fontSize: 20,
     fontWeight: "900",
-    marginTop: 20,
-    marginBottom: 10,
+    marginTop: 13,
   },
 
-  desktopQuickActions: {
-    width: "100%",
+  statUnit: {
+    fontSize: 9,
+    fontWeight: "700",
+  },
+
+  statTarget: {
+    fontSize: 9,
+    marginTop: 2,
+  },
+
+  statTrack: {
+    height: 6,
+    borderRadius: 6,
+    overflow: "hidden",
+    marginTop: 12,
+  },
+
+  statFill: {
+    height: "100%",
+    borderRadius: 6,
+  },
+
+  actionRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: 10,
+    marginBottom: 27,
   },
 
-  desktopLowerGrid: {
-    width: "100%",
-    flexDirection: "row",
-    gap: 22,
-    alignItems: "flex-start",
-  },
-
-  desktopLowerRight: {
+  actionCard: {
     flex: 1,
-    minWidth: 0,
-    gap: 18,
+    minHeight: 132,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 15,
+  },
+
+  actionIcon: {
+    width: 43,
+    height: 43,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  actionTitle: {
+    fontSize: 13,
+    fontWeight: "900",
+    marginTop: 12,
+  },
+
+  actionSubtitle: {
+    fontSize: 9,
+    marginTop: 4,
+  },
+
+  activityRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 12,
+  },
+
+  activityCard: {
+    flex: 1,
+    minHeight: 160,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 15,
+  },
+
+  activityIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  activityTitle: {
+    fontSize: 10,
+    fontWeight: "800",
+    marginTop: 11,
+  },
+
+  activityValue: {
+    fontSize: 19,
+    fontWeight: "900",
+    marginTop: 5,
+  },
+
+  activityTarget: {
+    fontSize: 9,
+    marginTop: 2,
+  },
+
+  activityTrack: {
+    height: 6,
+    borderRadius: 6,
+    overflow: "hidden",
+    marginTop: 14,
+  },
+
+  activityFill: {
+    height: "100%",
+    borderRadius: 6,
+  },
+
+  mealCard: {
+    minHeight: 82,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+
+  mealIcon: {
+    width: 47,
+    height: 47,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  mealInfo: {
+    flex: 1,
+    marginLeft: 12,
+    marginRight: 8,
+  },
+
+  mealTitle: {
+    fontSize: 13,
+    fontWeight: "900",
+  },
+
+  mealSubtitle: {
+    fontSize: 9,
+    lineHeight: 14,
+    marginTop: 4,
+  },
+
+  arrowButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  tipCard: {
+    borderRadius: 20,
+    padding: 17,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+
+  tipIcon: {
+    width: 43,
+    height: 43,
+    borderRadius: 13,
+    backgroundColor: "rgba(17,17,17,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  tipContent: {
+    flex: 1,
+    marginLeft: 13,
+  },
+
+  tipLabel: {
+    color: "#111111",
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+
+  tipText: {
+    color: "#111111",
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: "700",
+    marginTop: 5,
   },
 });
