@@ -12,6 +12,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import DashboardPage from "../../components/dashboard/DashboardPage";
 import { useAppData } from "../../context/AppDataContext";
 import { useTheme } from "../../context/ThemeContext";
+import { saveWorkoutHistory } from "../../storage/workoutStorage";
 
 type WorkoutExercise = {
   id: string;
@@ -166,6 +167,7 @@ export default function WorkoutSessionScreen() {
   const [restSeconds, setRestSeconds] = useState(0);
   const [isResting, setIsResting] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const currentExercise =
     selectedWorkout.exercises[currentExerciseIndex];
@@ -182,10 +184,20 @@ export default function WorkoutSessionScreen() {
     completedSets
   ).reduce((total, value) => total + value, 0);
 
+  const completedExercises =
+    selectedWorkout.exercises.filter(
+      (exercise) =>
+        (completedSets[exercise.id] || 0) >= exercise.sets
+    ).length;
+
   const overallProgress =
     totalSets === 0
       ? 0
       : completedTotalSets / totalSets;
+const stepsAdded = Math.max(
+    250,
+    Math.round(selectedWorkout.duration * 10)
+  );
 
   useEffect(() => {
     if (!isResting || restSeconds <= 0) {
@@ -199,7 +211,8 @@ export default function WorkoutSessionScreen() {
           setIsResting(false);
           return 0;
         }
-return current - 1;
+
+        return current - 1;
       });
     }, 1000);
 
@@ -212,8 +225,7 @@ return current - 1;
     }
 
     if (
-      currentCompletedSets >=
-      currentExercise.sets
+      currentCompletedSets >= currentExercise.sets
     ) {
       return;
     }
@@ -263,27 +275,47 @@ return current - 1;
   };
 
   const finishWorkout = async () => {
-    if (isFinished) {
+    if (
+      isFinished ||
+      isSaving ||
+      completedTotalSets < totalSets
+    ) {
       return;
     }
 
-    setIsFinished(true);
-    setIsResting(false);
-    setRestSeconds(0);
+    setIsSaving(true);
 
-    await addSteps(
-      Math.max(
-        250,
-        Math.round(selectedWorkout.duration * 10)
-      )
-    );
+    try {
+      await addSteps(stepsAdded);
+
+      await saveWorkoutHistory({
+        id: `${selectedWorkout.id}-${Date.now()}`,
+        workoutId: selectedWorkout.id,
+        workoutName: selectedWorkout.name,
+        focus: selectedWorkout.focus,
+        duration: selectedWorkout.duration,
+        completedSets: completedTotalSets,
+        totalSets,
+        completedExercises,
+        totalExercises:
+          selectedWorkout.exercises.length,
+        stepsAdded,
+        completedAt: new Date().toISOString(),
+      });
+
+      setIsFinished(true);
+      setIsResting(false);
+      setRestSeconds(0);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (isFinished) {
     return (
       <DashboardPage
         title="Workout Complete"
-        subtitle="You finished today's session."
+        subtitle="Your workout has been saved."
         icon="trophy-outline"
       >
         <View
@@ -325,8 +357,8 @@ return current - 1;
               { color: colors.subtext },
             ]}
           >
-            You completed your {selectedWorkout.name}{" "}
-            workout.
+            Your {selectedWorkout.name} workout has been
+            recorded in your workout history.
           </Text>
 
           <View style={styles.finishedStats}>
@@ -347,8 +379,7 @@ return current - 1;
               >
                 {selectedWorkout.duration}
               </Text>
-
-              <Text
+<Text
                 style={[
                   styles.finishedStatLabel,
                   { color: colors.subtext },
@@ -385,8 +416,37 @@ return current - 1;
                 sets
               </Text>
             </View>
+
+            <View
+              style={[
+                styles.finishedStat,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.finishedStatValue,
+                  { color: colors.text },
+                ]}
+              >
+                {stepsAdded}
+              </Text>
+
+              <Text
+                style={[
+                  styles.finishedStatLabel,
+                  { color: colors.subtext },
+                ]}
+              >
+                steps
+              </Text>
+            </View>
           </View>
-<Pressable
+
+          <Pressable
             style={[
               styles.primaryButton,
               {
@@ -480,8 +540,7 @@ return current - 1;
               >
                 Session progress
               </Text>
-
-              <Text
+<Text
                 style={[
                   styles.progressSubtitle,
                   { color: colors.subtext },
@@ -497,10 +556,7 @@ return current - 1;
                 { color: colors.primary },
               ]}
             >
-              {Math.round(
-                overallProgress * 100
-              )}
-              %
+              {Math.round(overallProgress * 100)}%
             </Text>
           </View>
 
@@ -543,7 +599,7 @@ return current - 1;
             },
           ]}
         >
-<View
+          <View
             style={[
               styles.exerciseIcon,
               {
@@ -635,8 +691,7 @@ return current - 1;
                 size={26}
                 color={colors.primary}
               />
-
-              <View style={styles.restInfo}>
+<View style={styles.restInfo}>
                 <Text
                   style={[
                     styles.restTitle,
@@ -682,7 +737,7 @@ return current - 1;
                 currentCompletedSets >=
                 currentExercise.sets
               }
->
+            >
               <Ionicons
                 name={
                   currentCompletedSets >=
@@ -728,9 +783,7 @@ return current - 1;
                 backgroundColor: colors.card,
                 borderColor: colors.border,
                 opacity:
-                  currentExerciseIndex === 0
-                    ? 0.45
-                    : 1,
+                  currentExerciseIndex === 0 ? 0.45 : 1,
               },
             ]}
             disabled={currentExerciseIndex === 0}
@@ -769,7 +822,7 @@ return current - 1;
                       ? colors.primary
                       : colors.border,
                 },
-              ]}
+]}
               disabled={
                 currentCompletedSets <
                 currentExercise.sets
@@ -813,12 +866,13 @@ return current - 1;
                       : colors.card,
                   borderColor:
                     completedTotalSets >= totalSets
-? colors.primary
+                      ? colors.primary
                       : colors.border,
                 },
               ]}
               disabled={
-                completedTotalSets < totalSets
+                completedTotalSets < totalSets ||
+                isSaving
               }
               onPress={finishWorkout}
             >
@@ -827,14 +881,13 @@ return current - 1;
                   styles.navigationText,
                   {
                     color:
-                      completedTotalSets >=
-                      totalSets
+                      completedTotalSets >= totalSets
                         ? "#111111"
                         : colors.subtext,
                   },
                 ]}
               >
-                Finish
+                {isSaving ? "Saving..." : "Finish"}
               </Text>
 
               <Ionicons
@@ -945,8 +998,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     marginTop: 4,
   },
-
-  progressPercentage: {
+progressPercentage: {
     fontSize: 19,
     fontWeight: "900",
   },
@@ -1030,7 +1082,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-completeButtonText: {
+
+  completeButtonText: {
     fontSize: 12,
     fontWeight: "900",
     marginLeft: 8,
@@ -1145,7 +1198,7 @@ completeButtonText: {
   finishedStats: {
     width: "100%",
     flexDirection: "row",
-    gap: 10,
+    gap: 8,
     marginTop: 25,
   },
 
@@ -1159,12 +1212,12 @@ completeButtonText: {
   },
 
   finishedStatValue: {
-    fontSize: 21,
+    fontSize: 18,
     fontWeight: "900",
   },
 
   finishedStatLabel: {
-    fontSize: 9,
+    fontSize: 8,
     marginTop: 4,
   },
 
