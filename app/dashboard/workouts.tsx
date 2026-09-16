@@ -3,24 +3,18 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import DashboardPage, {
   DashboardCard,
   DashboardSection,
 } from "../../components/dashboard/DashboardPage";
 import { useAppData } from "../../context/AppDataContext";
-import { useTheme } from "../../context/ThemeContext";
-import {
-  exerciseDatabase,
-  searchExercises,
-  type Exercise,
-} from "../../data/exercises/exerciseDatabase";
 
-type WorkoutExercise = {
+type Exercise = {
   id: string;
   name: string;
   sets: number;
@@ -33,7 +27,7 @@ type Workout = {
   name: string;
   focus: string;
   duration: number;
-  exercises: WorkoutExercise[];
+  exercises: Exercise[];
 };
 
 const workouts: Workout[] = [
@@ -147,51 +141,24 @@ const workouts: Workout[] = [
   },
 ];
 
-const muscleGroups = [
-  "All",
-  "Full Body",
-  "Chest",
-  "Legs",
-  "Core",
-  "Glutes",
-  "Calves",
-  "Cardio",
-];
-
 export default function WorkoutsScreen() {
   const { data, addSteps } = useAppData();
-  const { colors } = useTheme();
 
   const [selectedWorkout, setSelectedWorkout] =
     useState<Workout>(workouts[0]);
 
   const [completed, setCompleted] = useState<string[]>([]);
-  const [search, setSearch] = useState("");
-  const [selectedMuscle, setSelectedMuscle] =
-    useState("All");
-  const [selectedExercise, setSelectedExercise] =
-    useState<Exercise | null>(null);
 
   const completedCount = completed.length;
   const totalExercises = selectedWorkout.exercises.length;
 
-  const workoutProgress =
-    totalExercises === 0
-      ? 0
-      : completedCount / totalExercises;
-
-  const filteredExercises = useMemo(() => {
-    const searched = searchExercises(search);
-
-    if (selectedMuscle === "All") {
-      return searched;
-    }
-
-    return searched.filter(
-      (exercise) =>
-        exercise.muscleGroup === selectedMuscle
-    );
-  }, [search, selectedMuscle]);
+  const workoutProgress = useMemo(
+    () =>
+      totalExercises === 0
+        ? 0
+        : completedCount / totalExercises,
+    [completedCount, totalExercises]
+  );
 
   const toggleExercise = async (exerciseId: string) => {
     const alreadyCompleted =
@@ -217,92 +184,76 @@ export default function WorkoutsScreen() {
     setCompleted([]);
   };
 
+  const startWorkout = () => {
+    router.push({
+      pathname: "/dashboard/workout-session",
+      params: {
+        workoutId: selectedWorkout.id,
+      },
+    });
+  };
+
   return (
     <DashboardPage
       title="Workouts"
-      subtitle="Move, train, and build consistency."
+subtitle="Move, train, and build consistency."
       icon="fitness-outline"
     >
       <DashboardSection
-        title="Today's workout"
-        subtitle="Choose a workout and complete each exercise."
+        title="Today's Workout"
+        subtitle="Choose a workout and start your session."
       >
-        <View
-          style={[
-            styles.summaryCard,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.summaryIcon,
-              {
-                backgroundColor: `${colors.primary}18`,
-              },
-            ]}
-          >
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryIcon}>
             <Ionicons
               name="fitness-outline"
               size={28}
-              color={colors.primary}
+              color="#FFC107"
             />
           </View>
 
           <View style={styles.summaryContent}>
-            <Text
-              style={[
-                styles.summaryTitle,
-                { color: colors.text },
-              ]}
-            >
+            <Text style={styles.summaryTitle}>
               {selectedWorkout.name}
             </Text>
 
-            <Text
-              style={[
-                styles.summarySubtitle,
-                { color: colors.subtext },
-              ]}
-            >
+            <Text style={styles.summarySubtitle}>
               {selectedWorkout.focus} ·{" "}
               {selectedWorkout.duration} minutes
             </Text>
 
-            <View
-              style={[
-                styles.progressTrack,
-                { backgroundColor: colors.border },
-              ]}
-            >
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: `${workoutProgress * 100}%`,
-                    backgroundColor: colors.primary,
-                  },
-                ]}
-              />
-            </View>
-
-            <Text
-              style={[
-                styles.progressText,
-                { color: colors.subtext },
-              ]}
-            >
-              {completedCount} of {totalExercises} exercises
-              completed
+            <Text style={styles.summaryDetails}>
+              {selectedWorkout.exercises.length} exercises
+              {" · "}
+              {selectedWorkout.exercises.reduce(
+                (total, exercise) =>
+                  total + exercise.sets,
+                0
+              )}{" "}
+              sets
             </Text>
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={startWorkout}
+              style={styles.startButton}
+            >
+              <Ionicons
+                name="play"
+                size={17}
+                color="#05070B"
+              />
+
+              <Text style={styles.startButtonText}>
+                Start Workout
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </DashboardSection>
 
       <DashboardSection
-        title="Workout options"
+        title="Workout Options"
         subtitle="Select the workout that fits your goal today."
       >
         <ScrollView
@@ -318,17 +269,13 @@ export default function WorkoutsScreen() {
               <TouchableOpacity
                 key={workout.id}
                 activeOpacity={0.8}
-                onPress={() => changeWorkout(workout)}
+                onPress={() =>
+                  changeWorkout(workout)
+                }
                 style={[
                   styles.workoutOption,
-                  {
-                    backgroundColor: colors.card,
-                    borderColor: colors.border,
-                  },
-                  active && {
-                    backgroundColor: colors.primary,
-                    borderColor: colors.primary,
-                  },
+                  active &&
+                    styles.workoutOptionActive,
                 ]}
               >
                 <Ionicons
@@ -342,29 +289,26 @@ export default function WorkoutsScreen() {
                   size={23}
                   color={
                     active
-                      ? "#111111"
-                      : colors.primary
+                      ? "#05070B"
+                      : "#FFC107"
                   }
                 />
 
                 <Text
                   style={[
                     styles.workoutName,
-                    { color: colors.text },
-                    active && {
-                      color: "#111111",
-                    },
+                    active &&
+                      styles.workoutNameActive,
                   ]}
                 >
                   {workout.name}
                 </Text>
+
                 <Text
                   style={[
                     styles.workoutDuration,
-                    { color: colors.subtext },
-                    active && {
-                      color: "#302600",
-                    },
+                    active &&
+                      styles.workoutDurationActive,
                   ]}
                 >
                   {workout.duration} min
@@ -376,57 +320,49 @@ export default function WorkoutsScreen() {
       </DashboardSection>
 
       <DashboardSection
-        title="Your workout"
-        subtitle="Complete each exercise to finish today's session."
+        title="Exercises"
+        subtitle="Preview the exercises included in this workout."
       >
         <View style={styles.exerciseList}>
           {selectedWorkout.exercises.map(
             (exercise, index) => {
-              const isCompleted =
-                completed.includes(exercise.id);
-
               return (
                 <TouchableOpacity
                   key={exercise.id}
-                  activeOpacity={0.8}
+activeOpacity={0.8}
                   onPress={() =>
                     toggleExercise(exercise.id)
                   }
                   style={[
                     styles.exerciseCard,
-                    {
-                      backgroundColor: colors.card,
-                      borderColor: colors.border,
-                    },
-                    isCompleted && {
-                      borderColor: colors.success,
-                    },
+                    completed.includes(
+                      exercise.id
+                    ) &&
+                      styles.exerciseCardCompleted,
                   ]}
                 >
                   <View
                     style={[
                       styles.exerciseNumber,
-                      {
-                          backgroundColor: `${colors.primary}18`,
-                      },
-                      isCompleted && {
-                        backgroundColor:
-                          colors.success,
-                      },
+                      completed.includes(
+                        exercise.id
+                      ) &&
+                        styles.exerciseNumberCompleted,
                     ]}
                   >
-                    {isCompleted ? (
+                    {completed.includes(
+                      exercise.id
+                    ) ? (
                       <Ionicons
                         name="checkmark"
                         size={18}
-                        color="#111111"
+                        color="#05070B"
                       />
                     ) : (
                       <Text
-                        style={[
-                          styles.exerciseNumberText,
-                          { color: colors.primary },
-                        ]}
+                        style={
+                          styles.exerciseNumberText
+                        }
                       >
                         {index + 1}
                       </Text>
@@ -435,19 +371,13 @@ export default function WorkoutsScreen() {
 
                   <View style={styles.exerciseInfo}>
                     <Text
-                      style={[
-                        styles.exerciseName,
-                        { color: colors.text },
-                      ]}
+                      style={styles.exerciseName}
                     >
                       {exercise.name}
                     </Text>
 
                     <Text
-                      style={[
-                        styles.exerciseDetails,
-                        { color: colors.subtext },
-                      ]}
+                      style={styles.exerciseDetails}
                     >
                       {exercise.sets} sets ·{" "}
                       {exercise.reps} reps · Rest{" "}
@@ -457,200 +387,24 @@ export default function WorkoutsScreen() {
 
                   <Ionicons
                     name={
-                      isCompleted
+                      completed.includes(
+                        exercise.id
+                      )
                         ? "checkmark-circle"
                         : "ellipse-outline"
                     }
                     size={22}
                     color={
-                      isCompleted
-                        ? colors.success
-                        : colors.subtext
+                      completed.includes(
+                        exercise.id
+                      )
+                        ? "#54D68C"
+                        : "#737B89"
                     }
                   />
                 </TouchableOpacity>
               );
             }
-          )}
-        </View>
-      </DashboardSection>
-
-      <DashboardSection
-        title="Exercise library"
-        subtitle="Explore exercises and learn how to perform them."
-      >
-        <View
-          style={[
-            styles.searchContainer,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <Ionicons
-            name="search-outline"
-            size={19}
-            color={colors.subtext}
-          />
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search exercises..."
-            placeholderTextColor={colors.subtext}
-            style={[
-              styles.searchInput,
-              { color: colors.text },
-            ]}
-          />
-
-          {search.length > 0 && (
-            <TouchableOpacity
-              onPress={() => setSearch("")}
-            >
-              <Ionicons
-                name="close-circle"
-                size={19}
-                color={colors.subtext}
-              />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterRow}
-        >
-          {muscleGroups.map((group) => {
-            const active = selectedMuscle === group;
-
-            return (
-              <TouchableOpacity
-                key={group}
-                onPress={() => setSelectedMuscle(group)}
-                style={[
-                  styles.filterButton,
-                  {
-                    backgroundColor: colors.card,
-                    borderColor: colors.border,
-                  },
-                  active && {
-                    backgroundColor: colors.primary,
-                    borderColor: colors.primary,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.filterText,
-                    { color: colors.subtext },
-                    active && {
-                      color: "#111111",
-                    },
-                  ]}
-                >
-                  {group}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-
-        <View style={styles.libraryList}>
-          {filteredExercises.map((exercise) => (
-            <TouchableOpacity
-              key={exercise.id}
-              activeOpacity={0.8}
-              onPress={() =>
-                setSelectedExercise(exercise)
-              }
-              style={[
-                styles.libraryCard,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.libraryIcon,
-                  {
-                      backgroundColor: `${colors.primary}18`,
-                  },
-                ]}
-              >
-                <Ionicons
-                  name="barbell-outline"
-                  size={21}
-                  color={colors.primary}
-                />
-              </View>
-
-              <View style={styles.libraryInfo}>
-                <Text
-                  style={[
-                    styles.libraryName,
-                    { color: colors.text },
-                  ]}
-                >
-                  {exercise.name}
-                </Text>
-
-                <Text
-                  style={[
-                    styles.libraryMeta,
-                    { color: colors.subtext },
-                  ]}
-                >
-                  {exercise.muscleGroup} ·{" "}
-                  {exercise.difficulty} ·{" "}
-                  {exercise.equipment}
-                </Text>
-              </View>
-
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color={colors.subtext}
-              />
-            </TouchableOpacity>
-          ))}
-
-          {filteredExercises.length === 0 && (
-            <View
-              style={[
-                styles.emptyLibrary,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                },
-              ]}
-            >
-              <Ionicons
-                name="search-outline"
-                size={25}
-                color={colors.subtext}
-              />
-              <Text
-                style={[
-                  styles.emptyTitle,
-                  { color: colors.text },
-                ]}
-              >
-                No exercises found
-              </Text>
-
-              <Text
-                style={[
-                  styles.emptyText,
-                  { color: colors.subtext },
-                ]}
-              >
-                Try another exercise or muscle group.
-              </Text>
-            </View>
           )}
         </View>
       </DashboardSection>
@@ -682,161 +436,24 @@ export default function WorkoutsScreen() {
       </DashboardSection>
 
       {workoutProgress >= 1 && (
-        <View
-          style={[
-            styles.completeCard,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.success,
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.completeIcon,
-              {
-                backgroundColor: `${colors.success}18`,
-              },
-            ]}
-          >
+        <View style={styles.completeCard}>
+          <View style={styles.completeIcon}>
             <Ionicons
               name="trophy-outline"
               size={27}
-              color={colors.success}
+              color="#54D68C"
             />
           </View>
 
           <View style={styles.completeContent}>
-            <Text
-              style={[
-                styles.completeTitle,
-                { color: colors.text },
-              ]}
-            >
+            <Text style={styles.completeTitle}>
               Workout completed!
             </Text>
 
-            <Text
-              style={[
-                styles.completeText,
-                { color: colors.subtext },
-              ]}
-            >
-              Great work. Keep building your consistency.
+            <Text style={styles.completeText}>
+              Great work. Keep building your
+              consistency.
             </Text>
-          </View>
-        </View>
-      )}
-
-      {selectedExercise && (
-        <View
-          style={[
-            styles.detailCard,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <View style={styles.detailHeader}>
-            <View style={styles.detailHeading}>
-              <View
-                style={[
-                  styles.detailIcon,
-                  {
-                      backgroundColor: `${colors.primary}18`,
-                  },
-                ]}
-              >
-                <Ionicons
-                  name="barbell-outline"
-                  size={22}
-                  color={colors.primary}
-                />
-              </View>
-
-              <View style={styles.detailTitleContainer}>
-                <Text
-                  style={[
-                    styles.detailTitle,
-                    { color: colors.text },
-                  ]}
-                >
-                  {selectedExercise.name}
-                </Text>
-
-                <Text
-                  style={[
-                    styles.detailMeta,
-                    { color: colors.subtext },
-                  ]}
-                >
-                  {selectedExercise.muscleGroup} ·{" "}
-                  {selectedExercise.difficulty}
-                </Text>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              onPress={() => setSelectedExercise(null)}
-            >
-              <Ionicons
-                name="close-circle"
-                size={25}
-                color={colors.subtext}
-              />
-            </TouchableOpacity>
-          </View>
-<Text
-            style={[
-              styles.detailDescription,
-              { color: colors.subtext },
-            ]}
-          >
-            {selectedExercise.description}
-          </Text>
-
-          <Text
-            style={[
-              styles.instructionsTitle,
-              { color: colors.text },
-            ]}
-          >
-            How to do it
-          </Text>
-
-          <View style={styles.instructionsList}>
-            {selectedExercise.instructions.map(
-              (instruction, index) => (
-                <View
-                  key={`${selectedExercise.id}-${index}`}
-                  style={styles.instructionRow}
-                >
-                  <View
-                    style={[
-                      styles.instructionNumber,
-                      {
-                        backgroundColor:
-                          colors.primary,
-                      },
-                    ]}
-                  >
-                    <Text style={styles.instructionNumberText}>
-                      {index + 1}
-                    </Text>
-                  </View>
-
-                  <Text
-                    style={[
-                      styles.instructionText,
-                      { color: colors.subtext },
-                    ]}
-                  >
-                    {instruction}
-                  </Text>
-                </View>
-              )
-            )}
           </View>
         </View>
       )}
@@ -846,18 +463,20 @@ export default function WorkoutsScreen() {
 
 const styles = StyleSheet.create({
   summaryCard: {
-    minHeight: 130,
+    minHeight: 170,
     borderRadius: 18,
     borderWidth: 1,
+    borderColor: "#242A34",
+    backgroundColor: "#10141B",
     padding: 17,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
   },
-
-  summaryIcon: {
+summaryIcon: {
     width: 58,
     height: 58,
     borderRadius: 17,
+    backgroundColor: "#1D1B14",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -868,31 +487,41 @@ const styles = StyleSheet.create({
   },
 
   summaryTitle: {
+    color: "#FFFFFF",
     fontSize: 17,
     fontWeight: "900",
   },
 
   summarySubtitle: {
+    color: "#737B89",
     fontSize: 10,
     fontWeight: "700",
     marginTop: 4,
   },
 
-  progressTrack: {
-    height: 7,
-    borderRadius: 7,
-    overflow: "hidden",
-    marginTop: 13,
-  },
-
-  progressFill: {
-    height: "100%",
-    borderRadius: 7,
-  },
-
-  progressText: {
+  summaryDetails: {
+    color: "#AEB5C1",
     fontSize: 9,
-    marginTop: 6,
+    marginTop: 8,
+  },
+
+  startButton: {
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: "#FFC107",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 15,
+    marginTop: 14,
+    alignSelf: "flex-start",
+  },
+
+  startButtonText: {
+    color: "#05070B",
+    fontSize: 11,
+    fontWeight: "900",
+    marginLeft: 7,
   },
 
   workoutRow: {
@@ -905,19 +534,36 @@ const styles = StyleSheet.create({
     minHeight: 105,
     borderRadius: 15,
     borderWidth: 1,
+    borderColor: "#242A34",
+    backgroundColor: "#10141B",
     padding: 14,
     justifyContent: "space-between",
   },
 
+  workoutOptionActive: {
+    backgroundColor: "#FFC107",
+    borderColor: "#FFC107",
+  },
+
   workoutName: {
+    color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "900",
     marginTop: 10,
   },
 
+  workoutNameActive: {
+    color: "#05070B",
+  },
+
   workoutDuration: {
+    color: "#737B89",
     fontSize: 9,
     fontWeight: "700",
+  },
+
+  workoutDurationActive: {
+    color: "#302600",
   },
 
   exerciseList: {
@@ -926,145 +572,73 @@ const styles = StyleSheet.create({
 
   exerciseCard: {
     minHeight: 76,
-    borderRadius: 16,
+    borderRadius: 15,
     borderWidth: 1,
-    padding: 13,
+    borderColor: "#242A34",
+    backgroundColor: "#10141B",
+    padding: 12,
     flexDirection: "row",
     alignItems: "center",
   },
 
+  exerciseCardCompleted: {
+    borderColor: "#315B46",
+    backgroundColor: "#101914",
+  },
+
   exerciseNumber: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: "#1D1B14",
     alignItems: "center",
     justifyContent: "center",
   },
 
+  exerciseNumberCompleted: {
+    backgroundColor: "#54D68C",
+  },
+
   exerciseNumberText: {
+    color: "#FFC107",
     fontSize: 13,
     fontWeight: "900",
   },
 
   exerciseInfo: {
     flex: 1,
-    marginLeft: 12,
-    marginRight: 10,
+    marginHorizontal: 12,
   },
 
   exerciseName: {
+    color: "#FFFFFF",
     fontSize: 12,
     fontWeight: "900",
   },
 
   exerciseDetails: {
+    color: "#737B89",
     fontSize: 9,
     marginTop: 5,
   },
 
-  searchContainer: {
-    height: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 13,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  searchInput: {
-    flex: 1,
-    height: "100%",
-    fontSize: 12,
-    marginLeft: 9,
-  },
-
-  filterRow: {
-    gap: 8,
-    paddingVertical: 12,
-  },
-
-  filterButton: {
-    paddingHorizontal: 13,
-    height: 34,
-    borderRadius: 11,
-    borderWidth: 1,
-    justifyContent: "center",
-  },
-
-  filterText: {
-    fontSize: 10,
-    fontWeight: "800",
-  },
-
-  libraryList: {
-    gap: 8,
-  },
-
-  libraryCard: {
-    minHeight: 68,
-    borderRadius: 15,
-    borderWidth: 1,
-    padding: 12,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  libraryIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-libraryInfo: {
-    flex: 1,
-    marginLeft: 11,
-    marginRight: 8,
-  },
-
-  libraryName: {
-    fontSize: 12,
-    fontWeight: "900",
-  },
-
-  libraryMeta: {
-    fontSize: 9,
-    marginTop: 4,
-  },
-
-  emptyLibrary: {
-    minHeight: 120,
+  completeCard: {
+    minHeight: 82,
+    marginTop: 14,
     borderRadius: 16,
     borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 18,
-  },
-
-  emptyTitle: {
-    fontSize: 13,
-    fontWeight: "900",
-    marginTop: 8,
-  },
-
-  emptyText: {
-    fontSize: 10,
-    marginTop: 4,
-  },
-
-  completeCard: {
-    minHeight: 92,
-    borderRadius: 18,
-    borderWidth: 1,
+    borderColor: "#315B46",
+    backgroundColor: "#101914",
     padding: 15,
     flexDirection: "row",
     alignItems: "center",
   },
 
   completeIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 15,
+    width: 49,
+    height: 49,
+    borderRadius: 14,
+    backgroundColor: "#17261D",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1075,98 +649,14 @@ libraryInfo: {
   },
 
   completeTitle: {
-    fontSize: 14,
+    color: "#FFFFFF",
+    fontSize: 13,
     fontWeight: "900",
   },
 
   completeText: {
+    color: "#737B89",
     fontSize: 10,
-    marginTop: 5,
-  },
-
-  detailCard: {
-    marginTop: 14,
-    borderRadius: 19,
-    borderWidth: 1,
-    padding: 17,
-  },
-
-  detailHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  detailHeading: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  detailIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  detailTitleContainer: {
-    flex: 1,
-    marginLeft: 11,
-  },
-
-  detailTitle: {
-    fontSize: 15,
-    fontWeight: "900",
-  },
-
-  detailMeta: {
-    fontSize: 9,
     marginTop: 4,
-  },
-
-  detailDescription: {
-    fontSize: 10,
-    lineHeight: 16,
-    marginTop: 15,
-  },
-
-  instructionsTitle: {
-    fontSize: 13,
-    fontWeight: "900",
-    marginTop: 17,
-    marginBottom: 10,
-  },
-
-  instructionsList: {
-    gap: 10,
-  },
-
-  instructionRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-  },
-
-  instructionNumber: {
-    width: 24,
-    height: 24,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 9,
-  },
-
-  instructionNumberText: {
-    color: "#111111",
-    fontSize: 9,
-    fontWeight: "900",
-  },
-
-  instructionText: {
-    flex: 1,
-    fontSize: 10,
-    lineHeight: 16,
-    paddingTop: 3,
   },
 });
