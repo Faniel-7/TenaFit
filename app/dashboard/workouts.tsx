@@ -1,662 +1,571 @@
-import React, { useMemo, useState } from "react";
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import DashboardPage, {
-  DashboardCard,
-  DashboardSection,
-} from "../../components/dashboard/DashboardPage";
+import React, { useEffect, useMemo, useState } from "react";
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useRouter } from "expo-router";
+import DashboardPage, { DashboardCard, DashboardSection } from "../../components/dashboard/DashboardPage";
 import { useAppData } from "../../context/AppDataContext";
-
-type Exercise = {
-  id: string;
-  name: string;
-  sets: number;
-  reps: string;
-  rest: string;
-};
+import { useAuth } from "../../context/AuthContext";
+import { useTheme } from "../../context/ThemeContext";
+import { exerciseDatabase, Exercise } from "../../data/exercises/exerciseDatabase";
+import { getRecommendedExercises } from "../../logic/workoutRecommendationEngine";
 
 type Workout = {
   id: string;
   name: string;
   focus: string;
   duration: number;
-  exercises: Exercise[];
+  exercises: string[];
 };
 
 const workouts: Workout[] = [
   {
     id: "full-body",
     name: "Full Body",
-    focus: "Strength",
+    focus: "Strength & conditioning",
     duration: 30,
     exercises: [
-      {
-        id: "squats",
-        name: "Bodyweight Squats",
-        sets: 3,
-        reps: "12",
-        rest: "45 sec",
-      },
-      {
-        id: "pushups",
-        name: "Push-ups",
-        sets: 3,
-        reps: "10",
-        rest: "45 sec",
-      },
-      {
-        id: "lunges",
-        name: "Reverse Lunges",
-        sets: 3,
-        reps: "10 each",
-        rest: "45 sec",
-      },
-      {
-        id: "plank",
-        name: "Plank",
-        sets: 3,
-        reps: "30 sec",
-        rest: "30 sec",
-      },
+      "Bodyweight Squats",
+      "Push-ups",
+      "Glute Bridge",
+      "Plank",
+      "Mountain Climbers",
     ],
   },
   {
     id: "cardio",
     name: "Cardio",
-    focus: "Endurance",
-    duration: 25,
+    focus: "Heart & calorie burn",
+    duration: 20,
     exercises: [
-      {
-        id: "jumping-jacks",
-        name: "Jumping Jacks",
-        sets: 3,
-        reps: "30",
-        rest: "30 sec",
-      },
-      {
-        id: "high-knees",
-        name: "High Knees",
-        sets: 3,
-        reps: "30 sec",
-        rest: "30 sec",
-      },
-      {
-        id: "mountain-climbers",
-        name: "Mountain Climbers",
-        sets: 3,
-        reps: "20",
-        rest: "45 sec",
-      },
-      {
-        id: "march",
-        name: "Fast March",
-        sets: 3,
-        reps: "60 sec",
-        rest: "30 sec",
-      },
+      "Jumping Jacks",
+      "High Knees",
+      "Mountain Climbers",
+      "Burpees",
+      "Fast March",
     ],
   },
   {
     id: "core",
     name: "Core",
-    focus: "Core",
-    duration: 20,
+    focus: "Core strength",
+    duration: 15,
     exercises: [
-      {
-        id: "crunches",
-        name: "Crunches",
-        sets: 3,
-        reps: "15",
-        rest: "30 sec",
-      },
-      {
-        id: "leg-raises",
-        name: "Leg Raises",
-        sets: 3,
-        reps: "10",
-        rest: "30 sec",
-      },
-      {
-        id: "plank-core",
-        name: "Plank",
-        sets: 3,
-        reps: "30 sec",
-        rest: "30 sec",
-      },
-      {
-        id: "dead-bug",
-        name: "Dead Bug",
-        sets: 3,
-        reps: "10 each",
-        rest: "30 sec",
-      },
+      "Plank",
+      "Crunches",
+      "Leg Raises",
+      "Dead Bug",
+      "Bird Dog",
     ],
   },
 ];
 
+const muscleGroups = [
+  "All",
+  "Full Body",
+  "Chest",
+  "Legs",
+  "Core",
+  "Glutes",
+  "Calves",
+  "Cardio",
+];
+
 export default function WorkoutsScreen() {
+  const router = useRouter();
+  const { user } = useAuth();
   const { data, addSteps } = useAppData();
+  const { colors } = useTheme();
 
-  const [selectedWorkout, setSelectedWorkout] =
-    useState<Workout>(workouts[0]);
+  const [search, setSearch] = useState("");
+  const [selectedMuscle, setSelectedMuscle] = useState("All");
+  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
+  const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
+  const [completedExercises, setCompletedExercises] = useState<string[]>([]);
 
-  const [completed, setCompleted] = useState<string[]>([]);
+  const profile = useMemo(() => {
+    const currentUser = user as any;
+    const storedProfile = currentUser?.profile || currentUser;
 
-  const completedCount = completed.length;
-  const totalExercises = selectedWorkout.exercises.length;
+    return {
+      goal: storedProfile?.goal,
+      activityLevel: storedProfile?.activityLevel,
+      workoutDays:
+        storedProfile?.workoutDays ||
+        storedProfile?.weeklyWorkoutDays,
+      workoutMinutes:
+        storedProfile?.workoutMinutes ||
+        storedProfile?.weeklyWorkoutMinutes,
+    };
+  }, [user]);
 
-  const workoutProgress = useMemo(
-    () =>
-      totalExercises === 0
-        ? 0
-        : completedCount / totalExercises,
-    [completedCount, totalExercises]
+  const recommendedExercises = useMemo(
+    () => getRecommendedExercises(exerciseDatabase, profile, 6),
+    [profile]
   );
 
-  const toggleExercise = async (exerciseId: string) => {
-    const alreadyCompleted =
-      completed.includes(exerciseId);
+  const filteredExercises = useMemo(() => {
+    const query = search.trim().toLowerCase();
 
-    if (alreadyCompleted) {
-      setCompleted((current) =>
+    return exerciseDatabase.filter((exercise) => {
+      const matchesSearch =
+        !query ||
+        exercise.name.toLowerCase().includes(query) ||
+        exercise.muscleGroup.toLowerCase().includes(query) ||
+        exercise.equipment.toLowerCase().includes(query);
+
+      const matchesMuscle =
+        selectedMuscle === "All" ||
+        exercise.muscleGroup === selectedMuscle;
+
+      return matchesSearch && matchesMuscle;
+    });
+  }, [search, selectedMuscle]);
+
+  const startWorkout = (workout: Workout) => {
+    router.push({
+      pathname: "/dashboard/workout-session",
+      params: {
+        workoutId: workout.id,
+      },
+    });
+  };
+
+  const toggleExercise = async (exerciseId: string) => {
+    if (completedExercises.includes(exerciseId)) {
+      setCompletedExercises((current) =>
         current.filter((id) => id !== exerciseId)
       );
       return;
     }
 
-    setCompleted((current) => [
-      ...current,
-      exerciseId,
-    ]);
-
+    setCompletedExercises((current) => [...current, exerciseId]);
     await addSteps(250);
   };
 
-  const changeWorkout = (workout: Workout) => {
-    setSelectedWorkout(workout);
-    setCompleted([]);
-  };
+  const getWorkoutProgress = (workout: Workout) => {
+    const completed = workout.exercises.filter((exerciseName) =>
+      completedExercises.includes(exerciseName)
+    ).length;
 
-  const startWorkout = () => {
-    router.push({
-      pathname: "/dashboard/workout-session",
-      params: {
-        workoutId: selectedWorkout.id,
-      },
-    });
+    return {
+      completed,
+      total: workout.exercises.length,
+    };
   };
+const styles = StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    search: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderWidth: 1,
+      borderRadius: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 13,
+      color: colors.text,
+      fontSize: 14,
+      marginBottom: 14,
+    },
+    filterScroll: {
+      marginBottom: 20,
+    },
+    filter: {
+      paddingHorizontal: 15,
+      paddingVertical: 9,
+      borderRadius: 20,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginRight: 8,
+    },
+    filterActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    filterText: {
+      color: colors.subtext,
+      fontSize: 12,
+      fontWeight: "700",
+    },
+    filterTextActive: {
+      color: "#111111",
+    },
+    recommendationCard: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderWidth: 1,
+      borderRadius: 20,
+      padding: 18,
+      marginBottom: 12,
+    },
+    recommendationName: {
+      color: colors.text,
+      fontSize: 17,
+      fontWeight: "800",
+    },
+    recommendationMeta: {
+      color: colors.subtext,
+      fontSize: 12,
+      marginTop: 5,
+    },
+    recommendationReason: {
+      color: colors.subtext,
+      fontSize: 13,
+      lineHeight: 19,
+      marginTop: 10,
+    },
+    recommendationButton: {
+      backgroundColor: colors.primary,
+      borderRadius: 13,
+      paddingVertical: 11,
+      paddingHorizontal: 15,
+      alignSelf: "flex-start",
+      marginTop: 13,
+    },
+    recommendationButtonText: {
+      color: "#111111",
+      fontSize: 12,
+      fontWeight: "800",
+    },
+    workoutCard: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderWidth: 1,
+      borderRadius: 20,
+      padding: 18,
+      marginBottom: 12,
+    },
+    workoutName: {
+      color: colors.text,
+      fontSize: 19,
+      fontWeight: "800",
+    },
+    workoutFocus: {
+      color: colors.subtext,
+      fontSize: 13,
+      marginTop: 5,
+    },
+    workoutInfo: {
+      color: colors.subtext,
+      fontSize: 12,
+      marginTop: 10,
+    },
+    workoutButton: {
+      backgroundColor: colors.primary,
+      borderRadius: 14,
+      paddingVertical: 12,
+      alignItems: "center",
+      marginTop: 15,
+    },
+    workoutButtonText: {
+      color: "#111111",
+      fontSize: 13,
+      fontWeight: "800",
+    },
+    exerciseCard: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderWidth: 1,
+      borderRadius: 18,
+      padding: 16,
+      marginBottom: 10,
+    },
+    exerciseName: {
+      color: colors.text,
+      fontSize: 16,
+      fontWeight: "800",
+    },
+    exerciseMeta: {
+      color: colors.subtext,
+      fontSize: 12,
+      marginTop: 4,
+    },
+    exerciseDescription: {
+      color: colors.subtext,
+      fontSize: 13,
+      lineHeight: 19,
+      marginTop: 10,
+    },
+    detailCard: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderWidth: 1,
+      borderRadius: 20,
+      padding: 18,
+      marginBottom: 20,
+    },
+    detailTitle: {
+      color: colors.text,
+      fontSize: 20,
+      fontWeight: "800",
+    },
+    detailText: {
+      color: colors.subtext,
+      fontSize: 13,
+      lineHeight: 20,
+      marginTop: 8,
+    },
+    instruction: {
+      color: colors.text,
+      fontSize: 13,
+      lineHeight: 20,
+      marginTop: 7,
+    },
+    activityCard: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderWidth: 1,
+      borderRadius: 20,
+      padding: 18,
+      marginBottom: 20,
+    },
+    activityValue: {
+      color: colors.text,
+      fontSize: 28,
+      fontWeight: "800",
+    },
+    activityLabel: {
+color: colors.subtext,
+      fontSize: 12,
+      marginTop: 4,
+    },
+    completionCard: {
+      backgroundColor: colors.primary,
+      borderRadius: 20,
+      padding: 20,
+      marginBottom: 20,
+    },
+    completionTitle: {
+      color: "#111111",
+      fontSize: 18,
+      fontWeight: "800",
+    },
+    completionText: {
+      color: "#111111",
+      fontSize: 13,
+      marginTop: 6,
+    },
+  });
 
   return (
     <DashboardPage
+      icon="repeat"
       title="Workouts"
-subtitle="Move, train, and build consistency."
-      icon="fitness-outline"
+      subtitle="Train smarter with workouts matched to your plan."
     >
-      <DashboardSection
-        title="Today's Workout"
-        subtitle="Choose a workout and start your session."
-      >
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryIcon}>
-            <Ionicons
-              name="fitness-outline"
-              size={28}
-              color="#FFC107"
-            />
-          </View>
-
-          <View style={styles.summaryContent}>
-            <Text style={styles.summaryTitle}>
-              {selectedWorkout.name}
-            </Text>
-
-            <Text style={styles.summarySubtitle}>
-              {selectedWorkout.focus} ·{" "}
-              {selectedWorkout.duration} minutes
-            </Text>
-
-            <Text style={styles.summaryDetails}>
-              {selectedWorkout.exercises.length} exercises
-              {" · "}
-              {selectedWorkout.exercises.reduce(
-                (total, exercise) =>
-                  total + exercise.sets,
-                0
-              )}{" "}
-              sets
-            </Text>
-
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={startWorkout}
-              style={styles.startButton}
-            >
-              <Ionicons
-                name="play"
-                size={17}
-                color="#05070B"
-              />
-
-              <Text style={styles.startButtonText}>
-                Start Workout
+      <View style={styles.screen}>
+        <DashboardSection title="Recommended for You">
+          {recommendedExercises.map((item) => (
+            <View key={item.exercise.id} style={styles.recommendationCard}>
+              <Text style={styles.recommendationName}>
+                {item.exercise.name}
               </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </DashboardSection>
 
-      <DashboardSection
-        title="Workout Options"
-        subtitle="Select the workout that fits your goal today."
-      >
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.workoutRow}
-        >
-          {workouts.map((workout) => {
-            const active =
-              selectedWorkout.id === workout.id;
+              <Text style={styles.recommendationMeta}>
+                {item.exercise.muscleGroup} • {item.exercise.difficulty} •{" "}
+                {item.exercise.equipment}
+              </Text>
 
-            return (
+              <Text style={styles.recommendationReason}>
+                {item.reason}
+              </Text>
+
               <TouchableOpacity
-                key={workout.id}
-                activeOpacity={0.8}
-                onPress={() =>
-                  changeWorkout(workout)
-                }
-                style={[
-                  styles.workoutOption,
-                  active &&
-                    styles.workoutOptionActive,
-                ]}
+                style={styles.recommendationButton}
+                onPress={() => setSelectedExercise(item.exercise)}
               >
-                <Ionicons
-                  name={
-                    workout.id === "cardio"
-                      ? "pulse-outline"
-                      : workout.id === "core"
-                      ? "body-outline"
-                      : "fitness-outline"
-                  }
-                  size={23}
-                  color={
-                    active
-                      ? "#05070B"
-                      : "#FFC107"
-                  }
-                />
-
-                <Text
-                  style={[
-                    styles.workoutName,
-                    active &&
-                      styles.workoutNameActive,
-                  ]}
-                >
-                  {workout.name}
-                </Text>
-
-                <Text
-                  style={[
-                    styles.workoutDuration,
-                    active &&
-                      styles.workoutDurationActive,
-                  ]}
-                >
-                  {workout.duration} min
+                <Text style={styles.recommendationButtonText}>
+                  View Exercise
                 </Text>
               </TouchableOpacity>
+            </View>
+          ))}
+        </DashboardSection>
+
+        {selectedExercise && (
+          <DashboardSection title="Exercise Details">
+            <View style={styles.detailCard}>
+              <Text style={styles.detailTitle}>
+                {selectedExercise.name}
+              </Text>
+
+              <Text style={styles.detailText}>
+                {selectedExercise.description}
+              </Text>
+
+              <Text style={styles.detailText}>
+                {selectedExercise.muscleGroup} •{" "}
+                {selectedExercise.difficulty} •{" "}
+                {selectedExercise.equipment}
+              </Text>
+
+              {selectedExercise.instructions.map((instruction, index) => (
+                <Text
+                  key={`${selectedExercise.id}-${index}`}
+                  style={styles.instruction}
+                >
+                  {index + 1}. {instruction}
+                </Text>
+              ))}
+
+              <TouchableOpacity
+                style={styles.workoutButton}
+                onPress={() => setSelectedExercise(null)}
+              >
+                <Text style={styles.workoutButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </DashboardSection>
+        )}
+
+        <DashboardSection title="Your Workouts">
+          {workouts.map((workout) => {
+            const progress = getWorkoutProgress(workout);
+
+            return (
+              <View key={workout.id} style={styles.workoutCard}>
+                <Text style={styles.workoutName}>{workout.name}</Text>
+
+                <Text style={styles.workoutFocus}>
+                  {workout.focus}
+                </Text>
+
+                <Text style={styles.workoutInfo}>
+                  {workout.duration} min • {progress.completed}/
+                  {progress.total} exercises completed
+                </Text>
+
+                <TouchableOpacity
+                  style={styles.workoutButton}
+                  onPress={() => {
+                    setSelectedWorkout(workout);
+                    startWorkout(workout);
+                  }}
+                >
+                  <Text style={styles.workoutButtonText}>
+                    Start Workout
+                  </Text>
+                </TouchableOpacity>
+              </View>
             );
           })}
-        </ScrollView>
-      </DashboardSection>
+        </DashboardSection>
 
-      <DashboardSection
-        title="Exercises"
-        subtitle="Preview the exercises included in this workout."
-      >
-        <View style={styles.exerciseList}>
-          {selectedWorkout.exercises.map(
-            (exercise, index) => {
+        {selectedWorkout && (
+          <DashboardSection title="Current Workout">
+            <View style={styles.workoutCard}>
+              <Text style={styles.workoutName}>
+                {selectedWorkout.name}
+              </Text>
+{selectedWorkout.exercises.map((exerciseName) => {
+                const completed =
+                  completedExercises.includes(exerciseName);
+
+                return (
+                  <TouchableOpacity
+                    key={exerciseName}
+                    style={styles.exerciseCard}
+                    onPress={() => toggleExercise(exerciseName)}
+                  >
+                    <Text style={styles.exerciseName}>
+                      {completed ? "✓ " : ""}
+                      {exerciseName}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </DashboardSection>
+        )}
+
+        <DashboardSection title="Exercise Library">
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search exercises..."
+            placeholderTextColor={colors.subtext}
+            style={styles.search}
+          />
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.filterScroll}
+          >
+            {muscleGroups.map((group) => {
+              const active = selectedMuscle === group;
+
               return (
                 <TouchableOpacity
-                  key={exercise.id}
-activeOpacity={0.8}
-                  onPress={() =>
-                    toggleExercise(exercise.id)
-                  }
+                  key={group}
                   style={[
-                    styles.exerciseCard,
-                    completed.includes(
-                      exercise.id
-                    ) &&
-                      styles.exerciseCardCompleted,
+                    styles.filter,
+                    active && styles.filterActive,
                   ]}
+                  onPress={() => setSelectedMuscle(group)}
                 >
-                  <View
+                  <Text
                     style={[
-                      styles.exerciseNumber,
-                      completed.includes(
-                        exercise.id
-                      ) &&
-                        styles.exerciseNumberCompleted,
+                      styles.filterText,
+                      active && styles.filterTextActive,
                     ]}
                   >
-                    {completed.includes(
-                      exercise.id
-                    ) ? (
-                      <Ionicons
-                        name="checkmark"
-                        size={18}
-                        color="#05070B"
-                      />
-                    ) : (
-                      <Text
-                        style={
-                          styles.exerciseNumberText
-                        }
-                      >
-                        {index + 1}
-                      </Text>
-                    )}
-                  </View>
-
-                  <View style={styles.exerciseInfo}>
-                    <Text
-                      style={styles.exerciseName}
-                    >
-                      {exercise.name}
-                    </Text>
-
-                    <Text
-                      style={styles.exerciseDetails}
-                    >
-                      {exercise.sets} sets ·{" "}
-                      {exercise.reps} reps · Rest{" "}
-                      {exercise.rest}
-                    </Text>
-                  </View>
-
-                  <Ionicons
-                    name={
-                      completed.includes(
-                        exercise.id
-                      )
-                        ? "checkmark-circle"
-                        : "ellipse-outline"
-                    }
-                    size={22}
-                    color={
-                      completed.includes(
-                        exercise.id
-                      )
-                        ? "#54D68C"
-                        : "#737B89"
-                    }
-                  />
+                    {group}
+                  </Text>
                 </TouchableOpacity>
               );
-            }
-          )}
-        </View>
-      </DashboardSection>
+            })}
+          </ScrollView>
 
-      <DashboardSection
-        title="Activity"
-        subtitle="Your activity data for today."
-      >
-        <DashboardCard
-          icon="walk-outline"
-          title="Steps"
-          description="Steps recorded today"
-          value={`${Math.round(data.steps)}`}
-        />
+          {filteredExercises.map((exercise) => (
+            <TouchableOpacity
+              key={exercise.id}
+              style={styles.exerciseCard}
+              onPress={() => setSelectedExercise(exercise)}
+            >
+              <Text style={styles.exerciseName}>
+                {exercise.name}
+              </Text>
 
-        <DashboardCard
-          icon="fitness-outline"
-          title="Workout progress"
-          description="Exercises completed"
-          value={`${Math.round(workoutProgress * 100)}%`}
-        />
+              <Text style={styles.exerciseMeta}>
+                {exercise.muscleGroup} • {exercise.difficulty} •{" "}
+                {exercise.equipment}
+              </Text>
 
-        <DashboardCard
-          icon="time-outline"
-          title="Workout duration"
-          description="Selected workout"
-          value={`${selectedWorkout.duration} min`}
-        />
-      </DashboardSection>
+              <Text style={styles.exerciseDescription}>
+                {exercise.description}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </DashboardSection>
 
-      {workoutProgress >= 1 && (
-        <View style={styles.completeCard}>
-          <View style={styles.completeIcon}>
-            <Ionicons
-              name="trophy-outline"
-              size={27}
-              color="#54D68C"
-            />
-          </View>
-
-          <View style={styles.completeContent}>
-            <Text style={styles.completeTitle}>
-              Workout completed!
+        <DashboardSection title="Today's Activity">
+          <View style={styles.activityCard}>
+            <Text style={styles.activityValue}>
+              {data.steps}
             </Text>
 
-            <Text style={styles.completeText}>
-              Great work. Keep building your
-              consistency.
+            <Text style={styles.activityLabel}>
+              Steps completed today
             </Text>
           </View>
-        </View>
-      )}
+        </DashboardSection>
+
+        {completedExercises.length > 0 && (
+          <View style={styles.completionCard}>
+            <Text style={styles.completionTitle}>
+              Great work!
+            </Text>
+
+            <Text style={styles.completionText}>
+              You have completed {completedExercises.length} exercise
+              {completedExercises.length === 1 ? "" : "s"} in this
+              session.
+            </Text>
+          </View>
+        )}
+      </View>
     </DashboardPage>
   );
 }
-
-const styles = StyleSheet.create({
-  summaryCard: {
-    minHeight: 170,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#242A34",
-    backgroundColor: "#10141B",
-    padding: 17,
-    flexDirection: "row",
-    alignItems: "flex-start",
-  },
-summaryIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: 17,
-    backgroundColor: "#1D1B14",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  summaryContent: {
-    flex: 1,
-    marginLeft: 15,
-  },
-
-  summaryTitle: {
-    color: "#FFFFFF",
-    fontSize: 17,
-    fontWeight: "900",
-  },
-
-  summarySubtitle: {
-    color: "#737B89",
-    fontSize: 10,
-    fontWeight: "700",
-    marginTop: 4,
-  },
-
-  summaryDetails: {
-    color: "#AEB5C1",
-    fontSize: 9,
-    marginTop: 8,
-  },
-
-  startButton: {
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: "#FFC107",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 15,
-    marginTop: 14,
-    alignSelf: "flex-start",
-  },
-
-  startButtonText: {
-    color: "#05070B",
-    fontSize: 11,
-    fontWeight: "900",
-    marginLeft: 7,
-  },
-
-  workoutRow: {
-    gap: 10,
-    paddingBottom: 4,
-  },
-
-  workoutOption: {
-    width: 135,
-    minHeight: 105,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: "#242A34",
-    backgroundColor: "#10141B",
-    padding: 14,
-    justifyContent: "space-between",
-  },
-
-  workoutOptionActive: {
-    backgroundColor: "#FFC107",
-    borderColor: "#FFC107",
-  },
-
-  workoutName: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "900",
-    marginTop: 10,
-  },
-
-  workoutNameActive: {
-    color: "#05070B",
-  },
-
-  workoutDuration: {
-    color: "#737B89",
-    fontSize: 9,
-    fontWeight: "700",
-  },
-
-  workoutDurationActive: {
-    color: "#302600",
-  },
-
-  exerciseList: {
-    gap: 9,
-  },
-
-  exerciseCard: {
-    minHeight: 76,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: "#242A34",
-    backgroundColor: "#10141B",
-    padding: 12,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  exerciseCardCompleted: {
-    borderColor: "#315B46",
-    backgroundColor: "#101914",
-  },
-
-  exerciseNumber: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: "#1D1B14",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  exerciseNumberCompleted: {
-    backgroundColor: "#54D68C",
-  },
-
-  exerciseNumberText: {
-    color: "#FFC107",
-    fontSize: 13,
-    fontWeight: "900",
-  },
-
-  exerciseInfo: {
-    flex: 1,
-    marginHorizontal: 12,
-  },
-
-  exerciseName: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "900",
-  },
-
-  exerciseDetails: {
-    color: "#737B89",
-    fontSize: 9,
-    marginTop: 5,
-  },
-
-  completeCard: {
-    minHeight: 82,
-    marginTop: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#315B46",
-    backgroundColor: "#101914",
-    padding: 15,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  completeIcon: {
-    width: 49,
-    height: 49,
-    borderRadius: 14,
-    backgroundColor: "#17261D",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  completeContent: {
-    flex: 1,
-    marginLeft: 13,
-  },
-
-  completeTitle: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "900",
-  },
-
-  completeText: {
-    color: "#737B89",
-    fontSize: 10,
-    marginTop: 4,
-  },
-});
