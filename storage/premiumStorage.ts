@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PremiumStatus } from "../types/premium";
+import { getPremiumCodeError, normalizePremiumCode } from "../logic/premiumCodeValidator";
 
 const PREMIUM_KEY = "@tenafit_premium";
 
@@ -38,11 +39,13 @@ export async function getPremiumStatus(): Promise<PremiumStatus> {
 export async function activatePremium(
   code: string
 ): Promise<PremiumStatus> {
-  const normalizedCode = code.trim().toUpperCase();
+  const error = getPremiumCodeError(code);
 
-  if (!normalizedCode) {
-    throw new Error("Please enter a premium code.");
+  if (error) {
+    throw new Error(error);
   }
+
+  const normalizedCode = normalizePremiumCode(code);
 
   const status: PremiumStatus = {
     isPremium: true,
