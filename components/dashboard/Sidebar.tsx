@@ -21,6 +21,7 @@ type SidebarRoute =
   | "/dashboard/meals"
   | "/dashboard/workouts"
   | "/dashboard/water"
+  | "/dashboard/steps"
   | "/dashboard/reports"
   | "/dashboard/settings";
 
@@ -41,10 +42,7 @@ export default function Sidebar({
 
   const isActive = (route: SidebarRoute) => {
     if (route === "/home") {
-      return (
-        pathname === "/home" ||
-        pathname === "/"
-      );
+      return pathname === "/home" || pathname === "/";
     }
 
     return pathname === route;
@@ -61,18 +59,14 @@ export default function Sidebar({
 
         <Text style={styles.logoText}>
           Tena
-          <Text style={styles.logoAccent}>
-            Fit
-          </Text>
+          <Text style={styles.logoAccent}>Fit</Text>
         </Text>
       </View>
 
       <View style={styles.navigationViewport}>
         <ScrollView
           style={styles.navigationScroll}
-          contentContainerStyle={
-            styles.navigationContent
-          }
+          contentContainerStyle={styles.navigationContent}
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
@@ -86,78 +80,57 @@ export default function Sidebar({
           <SidebarItem
             icon="calendar-outline"
             label="Plan"
-            active={isActive(
-              "/dashboard/plan"
-            )}
-            onPress={() =>
-              navigate("/dashboard/plan")
-            }
+            active={isActive("/dashboard/plan")}
+            onPress={() => navigate("/dashboard/plan")}
           />
 
           <SidebarItem
             icon="bar-chart-outline"
             label="Progress"
-            active={isActive(
-              "/dashboard/progress"
-            )}
-            onPress={() =>
-              navigate("/dashboard/progress")
-            }
+            active={isActive("/dashboard/progress")}
+            onPress={() => navigate("/dashboard/progress")}
           />
 
           <SidebarItem
             icon="restaurant-outline"
             label="Meals"
-            active={isActive(
-              "/dashboard/meals"
-            )}
-            onPress={() =>
-              navigate("/dashboard/meals")
-            }
+            active={isActive("/dashboard/meals")}
+            onPress={() => navigate("/dashboard/meals")}
           />
 
           <SidebarItem
             icon="barbell-outline"
             label="Workouts"
-            active={isActive(
-              "/dashboard/workouts"
-            )}
-            onPress={() =>
-              navigate("/dashboard/workouts")
-            }
+            active={isActive("/dashboard/workouts")}
+            onPress={() => navigate("/dashboard/workouts")}
           />
 
           <SidebarItem
             icon="water-outline"
             label="Water"
-            active={isActive(
-              "/dashboard/water"
-            )}
-            onPress={() =>
-              navigate("/dashboard/water")
-            }
+            active={isActive("/dashboard/water")}
+            onPress={() => navigate("/dashboard/water")}
+          />
+
+          <SidebarItem
+            icon="walk-outline"
+            label="Steps"
+            active={isActive("/dashboard/steps")}
+            onPress={() => navigate("/dashboard/steps")}
           />
 
           <SidebarItem
             icon="document-text-outline"
             label="Reports"
-            active={isActive(
-              "/dashboard/reports"
-            )}
-            onPress={() =>
-              navigate("/dashboard/reports")
-            }
+            active={isActive("/dashboard/reports")}
+            onPress={() => navigate("/dashboard/reports")}
           />
 
           <SidebarItem
             icon="settings-outline"
             label="Settings"
-            active={isActive(
-              "/dashboard/settings"
-            )}
-            onPress={() =>
-              navigate("/dashboard/settings")
-            }
+            active={isActive("/dashboard/settings")}
+            onPress={() => navigate("/dashboard/settings")}
           />
         </ScrollView>
       </View>
@@ -178,15 +151,13 @@ export default function Sidebar({
           >
             {displayName}
           </Text>
-<Text style={styles.level}>
-            Level 12
-          </Text>
+
+          <Text style={styles.level}>Level 12</Text>
 
           <View style={styles.xpTrack}>
             <View style={styles.xpFill} />
           </View>
-
-          <Text style={styles.xpText}>
+<Text style={styles.xpText}>
             2,850 / 5,000 XP
           </Text>
         </View>
@@ -218,18 +189,13 @@ function SidebarItem({
       <Ionicons
         name={icon}
         size={23}
-        color={
-          active
-            ? "#FFC107"
-            : "#A8ADB8"
-        }
+        color={active ? "#FFC107" : "#A8ADB8"}
       />
 
       <Text
         style={[
           styles.itemText,
-          active &&
-            styles.itemTextActive,
+          active && styles.itemTextActive,
         ]}
       >
         {label}
