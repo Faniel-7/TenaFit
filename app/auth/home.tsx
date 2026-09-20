@@ -12,12 +12,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import Svg, { Circle } from "react-native-svg";
 
+import BottomNav from "../../components/dashboard/BottomNav";
 import { useAuth } from "../../context/AuthContext";
 import { useAppData } from "../../context/AppDataContext";
 import { useTheme } from "../../context/ThemeContext";
 
 export default function HomeScreen() {
   const { user } = useAuth();
+
   const {
     data,
     goals,
@@ -30,22 +32,53 @@ export default function HomeScreen() {
     stepsProgress,
     overallProgress,
   } = useAppData();
+
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
 
   const fullName = user?.fullName?.trim() || "TenaFit User";
   const firstName = fullName.split(" ")[0] || "there";
 
+  const mealCount = Array.isArray(meals) ? meals.length : 0;
+
   const caloriesRemaining = Math.max(
-    goals.calories - data.calories,
+    Number(goals.calories || 0) - Number(data.calories || 0),
     0
   );
 
-  const mealCount = meals.length;
-
   const safeOverallProgress = Math.max(
     0,
-    Math.min(Math.round(overallProgress), 100)
+    Math.min(Math.round(Number(overallProgress) || 0), 100)
+  );
+
+  const safeCalorieProgress = Math.max(
+    0,
+    Math.min(Number(calorieProgress) || 0, 1)
+  );
+
+  const safeProteinProgress = Math.max(
+    0,
+    Math.min(Number(proteinProgress) || 0, 1)
+  );
+
+  const safeCarbsProgress = Math.max(
+    0,
+    Math.min(Number(carbsProgress) || 0, 1)
+  );
+
+  const safeFatProgress = Math.max(
+    0,
+    Math.min(Number(fatProgress) || 0, 1)
+  );
+
+  const safeWaterProgress = Math.max(
+    0,
+    Math.min(Number(waterProgress) || 0, 1)
+  );
+
+  const safeStepsProgress = Math.max(
+    0,
+    Math.min(Number(stepsProgress) || 0, 1)
   );
 
   const getGreeting = () => {
@@ -71,14 +104,16 @@ export default function HomeScreen() {
       return "You've reached your calorie target today. Keep your next choices balanced.";
     }
 
-    if (waterProgress < 0.5) {
-      return `You're at ${data.water.toFixed(
+    if (safeWaterProgress < 0.5) {
+      return `You're at ${Number(data.water || 0).toFixed(
         1
       )} L of water. Keep drinking throughout the day.`;
     }
 
-    if (stepsProgress < 0.5) {
-      return `You're at ${data.steps.toLocaleString()} steps. A little more movement will keep you on track.`;
+    if (safeStepsProgress < 0.5) {
+      return `You're at ${Number(
+        data.steps || 0
+      ).toLocaleString()} steps. A little more movement will keep you on track.`;
     }
 
     if (safeOverallProgress >= 80) {
@@ -91,11 +126,11 @@ export default function HomeScreen() {
   }, [
     mealCount,
     caloriesRemaining,
-    waterProgress,
-    data.water,
-    stepsProgress,
-    data.steps,
+    safeWaterProgress,
+    safeStepsProgress,
     safeOverallProgress,
+    data.water,
+    data.steps,
   ]);
 
   const isLargeScreen = width >= 700;
@@ -104,7 +139,9 @@ export default function HomeScreen() {
     <SafeAreaView
       style={[
         styles.safeArea,
-        { backgroundColor: colors.background },
+        {
+          backgroundColor: colors.background,
+        },
       ]}
     >
       <View style={styles.root}>
@@ -112,7 +149,7 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.content,
-            isLargeScreen && styles.largeScreenContent,
+            isLargeScreen ? styles.largeScreenContent : null,
           ]}
         >
           <View style={styles.mobileFrame}>
@@ -121,7 +158,9 @@ export default function HomeScreen() {
                 <View
                   style={[
                     styles.logo,
-                    { backgroundColor: colors.primary },
+                    {
+                      backgroundColor: colors.primary,
+                    },
                   ]}
                 >
                   <Ionicons
@@ -130,15 +169,20 @@ export default function HomeScreen() {
                     color="#111111"
                   />
                 </View>
-
-                <Text
+<Text
                   style={[
                     styles.brandText,
-                    { color: colors.text },
+                    {
+                      color: colors.text,
+                    },
                   ]}
                 >
                   Tena
-                  <Text style={{ color: colors.primary }}>
+                  <Text
+                    style={{
+                      color: colors.primary,
+                    }}
+                  >
                     Fit
                   </Text>
                 </Text>
@@ -150,7 +194,7 @@ export default function HomeScreen() {
                     styles.iconButton,
                     {
                       backgroundColor: colors.card,
-borderColor: colors.border,
+                      borderColor: colors.border,
                     },
                   ]}
                   onPress={() =>
@@ -167,7 +211,9 @@ borderColor: colors.border,
                 <Pressable
                   style={[
                     styles.avatar,
-                    { backgroundColor: colors.primary },
+                    {
+                      backgroundColor: colors.primary,
+                    },
                   ]}
                   onPress={() =>
                     router.push("/dashboard/profile")
@@ -184,7 +230,9 @@ borderColor: colors.border,
               <Text
                 style={[
                   styles.greetingTitle,
-                  { color: colors.text },
+                  {
+                    color: colors.text,
+                  },
                 ]}
               >
                 {getGreeting()}, {firstName}
@@ -193,10 +241,13 @@ borderColor: colors.border,
               <Text
                 style={[
                   styles.greetingSubtitle,
-                  { color: colors.subtext },
+                  {
+                    color: colors.subtext,
+                  },
                 ]}
               >
-                Stay consistent and keep moving toward your goals.
+                Stay consistent and keep moving toward your
+                goals.
               </Text>
             </View>
 
@@ -214,7 +265,9 @@ borderColor: colors.border,
                   <Text
                     style={[
                       styles.heroLabel,
-                      { color: colors.primary },
+                      {
+                        color: colors.primary,
+                      },
                     ]}
                   >
                     TODAY'S GOAL
@@ -223,23 +276,26 @@ borderColor: colors.border,
                   <Text
                     style={[
                       styles.heroTitle,
-                      { color: colors.text },
+                      {
+                        color: colors.text,
+                      },
                     ]}
                   >
                     Keep your nutrition
-                    {"\n"}on track
+                    {"\n"}
+                    on track
                   </Text>
 
                   <Text
                     style={[
                       styles.heroDescription,
-                      { color: colors.subtext },
+                      {
+                        color: colors.subtext,
+                      },
                     ]}
                   >
                     {caloriesRemaining > 0
-                      ? `${Math.round(
-                          caloriesRemaining
-                        )} calories remaining today`
+                      ? `${Math.round(caloriesRemaining)} calories remaining today`
                       : "You've reached your calorie target"}
                   </Text>
                 </View>
@@ -249,14 +305,15 @@ borderColor: colors.border,
                   colors={colors}
                 />
               </View>
-
               <View
                 style={[
                   styles.heroProgressTrack,
-                  { backgroundColor: colors.border },
+                  {
+                    backgroundColor: colors.border,
+                  },
                 ]}
               >
-                {safeOverallProgress > 0 && (
+                {safeOverallProgress > 0 ? (
                   <View
                     style={[
                       styles.heroProgressFill,
@@ -266,88 +323,81 @@ borderColor: colors.border,
                       },
                     ]}
                   />
-                )}
+                ) : null}
               </View>
             </View>
 
-            <View style={styles.sectionHeader}>
-              <Text
-                style={[
-                  styles.sectionTitle,
-                  { color: colors.text },
-                ]}
-              >
-                Today's nutrition
-              </Text>
-<Pressable
-                onPress={() =>
-                  router.push("/dashboard/progress")
-                }
-                hitSlop={8}
-              >
-                <Text
-                  style={[
-                    styles.viewAll,
-                    { color: colors.primary },
-                  ]}
-                >
-                  View progress
-                </Text>
-              </Pressable>
-            </View>
+            <SectionHeader
+              title="Today's nutrition"
+              action="View progress"
+              colors={colors}
+              onAction={() =>
+                router.push("/dashboard/progress")
+              }
+            />
 
             <View style={styles.statsGrid}>
               <StatCard
                 icon="flame-outline"
                 title="Calories"
-                value={Math.round(data.calories).toString()}
-                target={Math.round(goals.calories).toString()}
+                value={Math.round(
+                  Number(data.calories || 0)
+                ).toString()}
+                target={Math.round(
+                  Number(goals.calories || 0)
+                ).toString()}
                 unit="kcal"
-                progress={calorieProgress}
+                progress={safeCalorieProgress}
                 colors={colors}
               />
 
               <StatCard
                 icon="fitness-outline"
                 title="Protein"
-                value={Math.round(data.protein).toString()}
-                target={Math.round(goals.protein).toString()}
+                value={Math.round(
+                  Number(data.protein || 0)
+                ).toString()}
+                target={Math.round(
+                  Number(goals.protein || 0)
+                ).toString()}
                 unit="g"
-                progress={proteinProgress}
+                progress={safeProteinProgress}
                 colors={colors}
               />
 
               <StatCard
                 icon="leaf-outline"
                 title="Carbs"
-                value={Math.round(data.carbs).toString()}
-                target={Math.round(goals.carbs).toString()}
+                value={Math.round(
+                  Number(data.carbs || 0)
+                ).toString()}
+                target={Math.round(
+                  Number(goals.carbs || 0)
+                ).toString()}
                 unit="g"
-                progress={carbsProgress}
+                progress={safeCarbsProgress}
                 colors={colors}
               />
 
               <StatCard
                 icon="nutrition-outline"
                 title="Fat"
-                value={Math.round(data.fat).toString()}
-                target={Math.round(goals.fat).toString()}
+                value={Math.round(
+                  Number(data.fat || 0)
+                ).toString()}
+                target={Math.round(
+                  Number(goals.fat || 0)
+                ).toString()}
                 unit="g"
-                progress={fatProgress}
+                progress={safeFatProgress}
                 colors={colors}
               />
             </View>
 
-            <View style={styles.sectionHeader}>
-              <Text
-                style={[
-                  styles.sectionTitle,
-                  { color: colors.text },
-                ]}
-              >
-                Quick actions
-              </Text>
-            </View>
+            <SectionHeader
+              title="Quick actions"
+              colors={colors}
+            />
 
             <View style={styles.actionRow}>
               <ActionCard
@@ -371,43 +421,45 @@ borderColor: colors.border,
               />
             </View>
 
-            <View style={styles.sectionHeader}>
-              <Text
-                style={[
-                  styles.sectionTitle,
-                  { color: colors.text },
-                ]}
-              >
-                Daily activity
-              </Text>
-            </View>
+            <SectionHeader
+              title="Daily activity"
+              colors={colors}
+            />
 
             <View style={styles.activityRow}>
               <ActivityCard
                 icon="water-outline"
                 title="Water"
-                value={${data.water.toFixed(1)} L}
-                target={${goals.water.toFixed(1)} L}
-                progress={waterProgress}
+                value={`${Number(data.water || 0).toFixed(
+                  1
+                )} L`}
+                target={`${Number(
+                  goals.water || 0
+                ).toFixed(1)} L`}
+                progress={safeWaterProgress}
                 colors={colors}
                 onPress={() =>
                   router.push("/dashboard/water")
                 }
               />
-
-              <ActivityCard
+<ActivityCard
                 icon="walk-outline"
                 title="Steps"
-                value={data.steps.toLocaleString()}
-                target={goals.steps.toLocaleString()}
-                progress={stepsProgress}
+                value={Number(
+                  data.steps || 0
+                ).toLocaleString()}
+                target={Number(
+                  goals.steps || 0
+                ).toLocaleString()}
+                progress={safeStepsProgress}
                 colors={colors}
                 onPress={() =>
                   router.push("/dashboard/steps")
                 }
               />
             </View>
-<View
+
+            <View
               style={[
                 styles.mealCard,
                 {
@@ -420,8 +472,7 @@ borderColor: colors.border,
                 style={[
                   styles.mealIcon,
                   {
-                    backgroundColor:
-                      ${colors.primary}18,
+                    backgroundColor: `${colors.primary}18`,
                   },
                 ]}
               >
@@ -436,7 +487,9 @@ borderColor: colors.border,
                 <Text
                   style={[
                     styles.mealTitle,
-                    { color: colors.text },
+                    {
+                      color: colors.text,
+                    },
                   ]}
                 >
                   {mealCount === 0
@@ -445,19 +498,21 @@ borderColor: colors.border,
                         mealCount === 1
                           ? "meal"
                           : "meals"
-                      } logged today`}
+                      } logged today}
                 </Text>
 
                 <Text
                   style={[
                     styles.mealSubtitle,
-                    { color: colors.subtext },
+                    {
+                      color: colors.subtext,
+                    },
                   ]}
                 >
                   {mealCount === 0
                     ? "Start tracking your food to see your daily nutrition."
-                    : `${Math.round(
-                        data.calories
+                    : ${Math.round(
+                        Number(data.calories || 0)
                       )} calories recorded today`}
                 </Text>
               </View>
@@ -466,8 +521,7 @@ borderColor: colors.border,
                 style={[
                   styles.arrowButton,
                   {
-                    backgroundColor:
-                      ${colors.primary}18,
+                    backgroundColor: `${colors.primary}18`,
                   },
                 ]}
                 onPress={() =>
@@ -521,66 +575,7 @@ borderColor: colors.border,
           </View>
         </ScrollView>
 
-        <View
-          style={[
-            styles.bottomNav,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <HomeNavItem
-            icon="home"
-            label="Home"
-            active
-            colors={colors}
-            onPress={() => router.push("/home")}
-          />
-
-          <HomeNavItem
-            icon="calendar-outline"
-            label="Plan"
-            colors={colors}
-            onPress={() =>
-              router.push("/dashboard/plan")
-            }
-          />
-
-          <Pressable
-style={[
-              styles.navCenter,
-              { backgroundColor: colors.primary },
-            ]}
-            onPress={() =>
-              router.push("/dashboard/meals")
-            }
-          >
-            <Ionicons
-              name="add"
-              size={27}
-              color="#111111"
-            />
-          </Pressable>
-
-          <HomeNavItem
-            icon="bar-chart-outline"
-            label="Progress"
-            colors={colors}
-            onPress={() =>
-              router.push("/dashboard/progress")
-            }
-          />
-
-          <HomeNavItem
-            icon="person-outline"
-            label="Profile"
-            colors={colors}
-            onPress={() =>
-              router.push("/dashboard/profile")
-            }
-          />
-        </View>
+        <BottomNav />
       </View>
     </SafeAreaView>
   );
@@ -593,21 +588,13 @@ function ProgressRing({
   progress: number;
   colors: any;
 }) {
-
-function ProgressRing({
-  progress,
-  colors,
-}: {
-  progress: number;
-  colors: any;
-}) {
   const size = 94;
   const strokeWidth = 7;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const safeProgress = Math.max(
+const safeProgress = Math.max(
     0,
-    Math.min(progress, 100)
+    Math.min(Number(progress) || 0, 100)
   );
 
   const strokeDashoffset =
@@ -624,11 +611,11 @@ function ProgressRing({
         },
       ]}
     >
-      <Svg
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
-      >
+        <Svg
+          width={size}
+          height={size}
+          viewBox={`0 0 ${size} ${size}`}
+        >
         <Circle
           cx={size / 2}
           cy={size / 2}
@@ -638,7 +625,7 @@ function ProgressRing({
           fill="none"
         />
 
-        {safeProgress > 0 && (
+        {safeProgress > 0 ? (
           <Circle
             cx={size / 2}
             cy={size / 2}
@@ -651,14 +638,16 @@ function ProgressRing({
             strokeDashoffset={strokeDashoffset}
             transform={`rotate(-90 ${size / 2} ${size / 2})`}
           />
-        )}
+        ) : null}
       </Svg>
 
       <View style={styles.heroCircleContent}>
         <Text
           style={[
             styles.heroPercentage,
-            { color: colors.text },
+            {
+              color: colors.text,
+            },
           ]}
         >
           {safeProgress}%
@@ -667,12 +656,59 @@ function ProgressRing({
         <Text
           style={[
             styles.heroComplete,
-            { color: colors.subtext },
+            {
+              color: colors.subtext,
+            },
           ]}
         >
           done
         </Text>
       </View>
+    </View>
+  );
+}
+
+function SectionHeader({
+  title,
+  action,
+  colors,
+  onAction,
+}: {
+  title: string;
+  action?: string;
+  colors: any;
+  onAction?: () => void;
+}) {
+  return (
+    <View style={styles.sectionHeader}>
+      <Text
+        style={[
+          styles.sectionTitle,
+          {
+            color: colors.text,
+          },
+        ]}
+      >
+        {title}
+      </Text>
+
+      {action && onAction ? (
+        <Pressable
+          onPress={onAction}
+          hitSlop={8}
+        >
+          <Text
+            style={[
+              styles.viewAll,
+              {
+                color: colors.primary,
+              },
+            ]}
+          >
+            {action}
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -696,7 +732,7 @@ function StatCard({
 }) {
   const percentage = Math.max(
     0,
-    Math.min(progress, 1)
+    Math.min(Number(progress) || 0, 1)
   );
 
   return (
@@ -728,7 +764,9 @@ function StatCard({
         <Text
           style={[
             styles.statTitle,
-            { color: colors.subtext },
+            {
+              color: colors.subtext,
+            },
           ]}
         >
           {title}
@@ -738,14 +776,19 @@ function StatCard({
       <Text
         style={[
           styles.statValue,
-          { color: colors.text },
+          {
+            color: colors.text,
+          },
         ]}
       >
         {value}
+
         <Text
           style={[
             styles.statUnit,
-            { color: colors.subtext },
+            {
+              color: colors.subtext,
+            },
           ]}
         >
           {" "}
@@ -756,19 +799,22 @@ function StatCard({
       <Text
         style={[
           styles.statTarget,
-          { color: colors.subtext },
+          {
+            color: colors.subtext,
+          },
         ]}
       >
         of {target} {unit}
       </Text>
-
-      <View
+<View
         style={[
           styles.statTrack,
-          { backgroundColor: colors.border },
+          {
+            backgroundColor: colors.border,
+          },
         ]}
       >
-        {percentage > 0 && (
+        {percentage > 0 ? (
           <View
             style={[
               styles.statFill,
@@ -778,7 +824,7 @@ function StatCard({
               },
             ]}
           />
-        )}
+        ) : null}
       </View>
     </View>
   );
@@ -811,7 +857,9 @@ function ActionCard({
       <View
         style={[
           styles.actionIcon,
-          { backgroundColor: colors.primary },
+          {
+            backgroundColor: colors.primary,
+          },
         ]}
       >
         <Ionicons
@@ -824,7 +872,9 @@ function ActionCard({
       <Text
         style={[
           styles.actionTitle,
-          { color: colors.text },
+          {
+            color: colors.text,
+          },
         ]}
       >
         {title}
@@ -833,7 +883,9 @@ function ActionCard({
       <Text
         style={[
           styles.actionSubtitle,
-          { color: colors.subtext },
+          {
+            color: colors.subtext,
+          },
         ]}
       >
         {subtitle}
@@ -861,7 +913,7 @@ function ActivityCard({
 }) {
   const percentage = Math.max(
     0,
-    Math.min(progress, 1)
+    Math.min(Number(progress) || 0, 1)
   );
 
   return (
@@ -893,7 +945,9 @@ function ActivityCard({
       <Text
         style={[
           styles.activityTitle,
-          { color: colors.subtext },
+          {
+            color: colors.subtext,
+          },
         ]}
       >
         {title}
@@ -902,7 +956,9 @@ function ActivityCard({
       <Text
         style={[
           styles.activityValue,
-          { color: colors.text },
+          {
+            color: colors.text,
+          },
         ]}
       >
         {value}
@@ -911,7 +967,9 @@ function ActivityCard({
       <Text
         style={[
           styles.activityTarget,
-          { color: colors.subtext },
+          {
+            color: colors.subtext,
+          },
         ]}
       >
         of {target}
@@ -920,10 +978,12 @@ function ActivityCard({
       <View
         style={[
           styles.activityTrack,
-          { backgroundColor: colors.border },
+          {
+            backgroundColor: colors.border,
+          },
         ]}
       >
-        {percentage > 0 && (
+        {percentage > 0 ? (
           <View
             style={[
               styles.activityFill,
@@ -933,52 +993,8 @@ function ActivityCard({
               },
             ]}
           />
-        )}
+        ) : null}
       </View>
-    </Pressable>
-  );
-}
-
-function HomeNavItem({
-  icon,
-  label,
-  active = false,
-  colors,
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  active?: boolean;
-  colors: any;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      style={styles.navItem}
-      onPress={onPress}
-    >
-      <Ionicons
-        name={icon}
-        size={21}
-        color={
-          active
-            ? colors.primary
-            : colors.subtext
-        }
-      />
-
-      <Text
-        style={[
-          styles.navLabel,
-          {
-            color: active
-              ? colors.primary
-              : colors.subtext,
-          },
-        ]}
-      >
-        {label}
-      </Text>
     </Pressable>
   );
 }
@@ -1006,7 +1022,8 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 520,
   },
-header: {
+
+  header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -1035,10 +1052,8 @@ header: {
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 9,
   },
-
-  iconButton: {
+iconButton: {
     width: 42,
     height: 42,
     borderRadius: 13,
@@ -1053,6 +1068,7 @@ header: {
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
+    marginLeft: 9,
   },
 
   avatarText: {
@@ -1112,7 +1128,6 @@ header: {
   },
 
   heroCircle: {
-    borderRadius: 47,
     alignItems: "center",
     justifyContent: "center",
     marginLeft: 12,
@@ -1169,16 +1184,21 @@ header: {
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
     marginBottom: 27,
   },
 
   statCard: {
-    width: "48.5%",
+    width: "48%",
     minHeight: 137,
     borderRadius: 18,
     borderWidth: 1,
     padding: 14,
+    marginRight: "2%",
+    marginBottom: 10,
+  },
+
+  statCardLast: {
+    marginRight: 0,
   },
 
   statHeader: {
@@ -1230,7 +1250,6 @@ header: {
 
   actionRow: {
     flexDirection: "row",
-    gap: 10,
     marginBottom: 27,
   },
 
@@ -1240,6 +1259,10 @@ header: {
     borderRadius: 18,
     borderWidth: 1,
     padding: 15,
+  },
+
+  actionCardSecond: {
+    marginLeft: 10,
   },
 
   actionIcon: {
@@ -1263,7 +1286,6 @@ header: {
 
   activityRow: {
     flexDirection: "row",
-    gap: 10,
     marginBottom: 12,
   },
 
@@ -1275,6 +1297,10 @@ header: {
     padding: 15,
   },
 
+  activityCardSecond: {
+    marginLeft: 10,
+  },
+
   activityIcon: {
     width: 40,
     height: 40,
@@ -1282,7 +1308,8 @@ header: {
     alignItems: "center",
     justifyContent: "center",
   },
-activityTitle: {
+
+  activityTitle: {
     fontSize: 10,
     fontWeight: "800",
     marginTop: 11,
@@ -1305,8 +1332,7 @@ activityTitle: {
     overflow: "hidden",
     marginTop: 14,
   },
-
-  activityFill: {
+activityFill: {
     height: "100%",
     borderRadius: 6,
   },
@@ -1391,41 +1417,5 @@ activityTitle: {
     lineHeight: 15,
     fontWeight: "700",
     marginTop: 5,
-  },
-
-  bottomNav: {
-    position: "absolute",
-    left: 12,
-    right: 12,
-    bottom: 10,
-    height: 70,
-    borderRadius: 22,
-    borderWidth: 1,
-    paddingHorizontal: 7,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-  },
-
-  navItem: {
-    flex: 1,
-    height: 58,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 3,
-  },
-
-  navLabel: {
-    fontSize: 8,
-    fontWeight: "800",
-  },
-
-  navCenter: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    alignItems: "center",
-    justifyContent: "center",
-    marginHorizontal: 5,
   },
 });
