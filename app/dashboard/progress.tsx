@@ -1072,10 +1072,7 @@ function ProgressCard({
             style={[
               styles.progressCardFill,
               {
-                width: ${Math.min(
-                  percentage,
-                  100
-                )}%,
+                width: `${Math.min(percentage, 100)}%`,
                 backgroundColor: colors.primary,
               },
             ]}
