@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   Pressable,
   SafeAreaView,
@@ -6,11 +6,12 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import Svg, { Circle } from "react-native-svg";
 
-import BottomNav from "../../components/dashboard/BottomNav";
 import { useAuth } from "../../context/AuthContext";
 import { useAppData } from "../../context/AppDataContext";
 import { useTheme } from "../../context/ThemeContext";
@@ -30,6 +31,7 @@ export default function HomeScreen() {
     overallProgress,
   } = useAppData();
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
 
   const fullName = user?.fullName?.trim() || "TenaFit User";
   const firstName = fullName.split(" ")[0] || "there";
@@ -40,6 +42,11 @@ export default function HomeScreen() {
   );
 
   const mealCount = meals.length;
+
+  const safeOverallProgress = Math.max(
+    0,
+    Math.min(Math.round(overallProgress), 100)
+  );
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -55,6 +62,44 @@ export default function HomeScreen() {
     return "Good evening";
   };
 
+  const dailyInsight = useMemo(() => {
+    if (mealCount === 0) {
+      return "Start by logging your first meal so TenaFit can track your nutrition today.";
+    }
+
+    if (caloriesRemaining === 0) {
+      return "You've reached your calorie target today. Keep your next choices balanced.";
+    }
+
+    if (waterProgress < 0.5) {
+      return `You're at ${data.water.toFixed(
+        1
+      )} L of water. Keep drinking throughout the day.`;
+    }
+
+    if (stepsProgress < 0.5) {
+      return `You're at ${data.steps.toLocaleString()} steps. A little more movement will keep you on track.`;
+    }
+
+    if (safeOverallProgress >= 80) {
+      return "You're doing great today. Keep the momentum going.";
+    }
+
+    return `You have ${Math.round(
+      caloriesRemaining
+    )} calories remaining in today's target.`;
+  }, [
+    mealCount,
+    caloriesRemaining,
+    waterProgress,
+    data.water,
+    stepsProgress,
+    data.steps,
+    safeOverallProgress,
+  ]);
+
+  const isLargeScreen = width >= 700;
+
   return (
     <SafeAreaView
       style={[
@@ -65,415 +110,570 @@ export default function HomeScreen() {
       <View style={styles.root}>
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[
+            styles.content,
+            isLargeScreen && styles.largeScreenContent,
+          ]}
         >
-          <View style={styles.header}>
-            <View style={styles.brandRow}>
-              <View
-                style={[
-                  styles.logo,
-                  { backgroundColor: colors.primary },
-                ]}
-              >
-                <Ionicons
-                  name="fitness"
-                  size={22}
-                  color="#111111"
-                />
+          <View style={styles.mobileFrame}>
+            <View style={styles.header}>
+              <View style={styles.brandRow}>
+                <View
+                  style={[
+                    styles.logo,
+                    { backgroundColor: colors.primary },
+                  ]}
+                >
+                  <Ionicons
+                    name="fitness"
+                    size={22}
+                    color="#111111"
+                  />
+                </View>
+
+                <Text
+                  style={[
+                    styles.brandText,
+                    { color: colors.text },
+                  ]}
+                >
+                  Tena
+                  <Text style={{ color: colors.primary }}>
+                    Fit
+                  </Text>
+                </Text>
               </View>
 
+              <View style={styles.headerActions}>
+                <Pressable
+                  style={[
+                    styles.iconButton,
+                    {
+                      backgroundColor: colors.card,
+borderColor: colors.border,
+                    },
+                  ]}
+                  onPress={() =>
+                    router.push("/dashboard/settings")
+                  }
+                >
+                  <Ionicons
+                    name="settings-outline"
+                    size={21}
+                    color={colors.text}
+                  />
+                </Pressable>
+
+                <Pressable
+                  style={[
+                    styles.avatar,
+                    { backgroundColor: colors.primary },
+                  ]}
+                  onPress={() =>
+                    router.push("/dashboard/profile")
+                  }
+                >
+                  <Text style={styles.avatarText}>
+                    {firstName.charAt(0).toUpperCase()}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.greeting}>
               <Text
                 style={[
-                  styles.brandText,
+                  styles.greetingTitle,
                   { color: colors.text },
                 ]}
               >
-                Tena
-                <Text style={{ color: colors.primary }}>
-                  Fit
-                </Text>
+                {getGreeting()}, {firstName}
               </Text>
-            </View>
 
-            <View style={styles.headerActions}>
-              <Pressable
+              <Text
                 style={[
-                  styles.iconButton,
-                  {
-                    backgroundColor: colors.card,
-                    borderColor: colors.border,
-                  },
-                ]}
-                onPress={() =>
-                  router.push("/dashboard/settings")
-                }
-              >
-                <Ionicons
-                  name="settings-outline"
-                  size={21}
-                  color={colors.text}
-                />
-              </Pressable>
-
-              <Pressable
-                style={[
-                  styles.avatar,
-                  { backgroundColor: colors.primary },
-                ]}
-                onPress={() =>
-                  router.push("/dashboard/profile")
-                }
-              >
-                <Text style={styles.avatarText}>
-                  {firstName.charAt(0).toUpperCase()}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-
-          <View style={styles.greeting}>
-            <Text
-              style={[
-                styles.greetingTitle,
-                { color: colors.text },
-              ]}
-            >
-              {getGreeting()}, {firstName} 👋
-            </Text>
-
-            <Text
-              style={[
-                styles.greetingSubtitle,
-                { color: colors.subtext },
-              ]}
-            >
-              Stay consistent and keep moving toward your goals.
-            </Text>
-          </View>
-
-          <View
-            style={[
-              styles.hero,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <View style={styles.heroTop}>
-              <View style={styles.heroText}>
-                <Text
-                  style={[
-                    styles.heroLabel,
-                    { color: colors.primary },
-                  ]}
-                >
-                  TODAY'S GOAL
-                </Text>
-
-                <Text
-                  style={[
-                    styles.heroTitle,
-                    { color: colors.text },
-                  ]}
-                >
-                  Keep your nutrition
-                  {"\n"}on track
-                </Text>
-
-                <Text
-                  style={[
-                    styles.heroDescription,
-                    { color: colors.subtext },
-                  ]}
-                >
-                  {caloriesRemaining > 0
-                    ? `${Math.round(
-                        caloriesRemaining
-                      )} calories remaining today`
-                    : "You've reached your calorie target"}
-                </Text>
-              </View>
-
-              <View
-                style={[
-                  styles.heroCircle,
-                  { borderColor: colors.primary },
+                  styles.greetingSubtitle,
+                  { color: colors.subtext },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.heroPercentage,
-                    { color: colors.text },
-                  ]}
-                >
-                  {overallProgress}%
-                </Text>
-
-                <Text
-                  style={[
-                    styles.heroComplete,
-                    { color: colors.subtext },
-                  ]}
-                >
-                  done
-                </Text>
-              </View>
+                Stay consistent and keep moving toward your goals.
+              </Text>
             </View>
 
             <View
               style={[
-                styles.heroProgressTrack,
-                { backgroundColor: colors.border },
+                styles.hero,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <View style={styles.heroTop}>
+                <View style={styles.heroText}>
+                  <Text
+                    style={[
+                      styles.heroLabel,
+                      { color: colors.primary },
+                    ]}
+                  >
+                    TODAY'S GOAL
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.heroTitle,
+                      { color: colors.text },
+                    ]}
+                  >
+                    Keep your nutrition
+                    {"\n"}on track
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.heroDescription,
+                      { color: colors.subtext },
+                    ]}
+                  >
+                    {caloriesRemaining > 0
+                      ? `${Math.round(
+                          caloriesRemaining
+                        )} calories remaining today`
+                      : "You've reached your calorie target"}
+                  </Text>
+                </View>
+
+                <ProgressRing
+                  progress={safeOverallProgress}
+                  colors={colors}
+                />
+              </View>
+
+              <View
+                style={[
+                  styles.heroProgressTrack,
+                  { backgroundColor: colors.border },
+                ]}
+              >
+                {safeOverallProgress > 0 && (
+                  <View
+                    style={[
+                      styles.heroProgressFill,
+                      {
+                        width: `${safeOverallProgress}%`,
+                        backgroundColor: colors.primary,
+                      },
+                    ]}
+                  />
+                )}
+              </View>
+            </View>
+
+            <View style={styles.sectionHeader}>
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  { color: colors.text },
+                ]}
+              >
+                Today's nutrition
+              </Text>
+<Pressable
+                onPress={() =>
+                  router.push("/dashboard/progress")
+                }
+                hitSlop={8}
+              >
+                <Text
+                  style={[
+                    styles.viewAll,
+                    { color: colors.primary },
+                  ]}
+                >
+                  View progress
+                </Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.statsGrid}>
+              <StatCard
+                icon="flame-outline"
+                title="Calories"
+                value={Math.round(data.calories).toString()}
+                target={Math.round(goals.calories).toString()}
+                unit="kcal"
+                progress={calorieProgress}
+                colors={colors}
+              />
+
+              <StatCard
+                icon="fitness-outline"
+                title="Protein"
+                value={Math.round(data.protein).toString()}
+                target={Math.round(goals.protein).toString()}
+                unit="g"
+                progress={proteinProgress}
+                colors={colors}
+              />
+
+              <StatCard
+                icon="leaf-outline"
+                title="Carbs"
+                value={Math.round(data.carbs).toString()}
+                target={Math.round(goals.carbs).toString()}
+                unit="g"
+                progress={carbsProgress}
+                colors={colors}
+              />
+
+              <StatCard
+                icon="nutrition-outline"
+                title="Fat"
+                value={Math.round(data.fat).toString()}
+                target={Math.round(goals.fat).toString()}
+                unit="g"
+                progress={fatProgress}
+                colors={colors}
+              />
+            </View>
+
+            <View style={styles.sectionHeader}>
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  { color: colors.text },
+                ]}
+              >
+                Quick actions
+              </Text>
+            </View>
+
+            <View style={styles.actionRow}>
+              <ActionCard
+                icon="restaurant-outline"
+                title="Add meal"
+                subtitle="Track your food"
+                colors={colors}
+                onPress={() =>
+                  router.push("/dashboard/meals")
+                }
+              />
+
+              <ActionCard
+                icon="search-outline"
+                title="Find food"
+                subtitle="Browse food database"
+                colors={colors}
+                onPress={() =>
+                  router.push("/dashboard/meals")
+                }
+              />
+            </View>
+
+            <View style={styles.sectionHeader}>
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  { color: colors.text },
+                ]}
+              >
+                Daily activity
+              </Text>
+            </View>
+
+            <View style={styles.activityRow}>
+              <ActivityCard
+                icon="water-outline"
+                title="Water"
+                value={${data.water.toFixed(1)} L}
+                target={${goals.water.toFixed(1)} L}
+                progress={waterProgress}
+                colors={colors}
+                onPress={() =>
+                  router.push("/dashboard/water")
+                }
+              />
+
+              <ActivityCard
+                icon="walk-outline"
+                title="Steps"
+                value={data.steps.toLocaleString()}
+                target={goals.steps.toLocaleString()}
+                progress={stepsProgress}
+                colors={colors}
+                onPress={() =>
+                  router.push("/dashboard/steps")
+                }
+              />
+            </View>
+<View
+              style={[
+                styles.mealCard,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                },
               ]}
             >
               <View
                 style={[
-                  styles.heroProgressFill,
+                  styles.mealIcon,
                   {
-                    width: `${overallProgress}%`,
-                    backgroundColor: colors.primary,
+                    backgroundColor:
+                      ${colors.primary}18,
                   },
                 ]}
-              />
-            </View>
-          </View>
+              >
+                <Ionicons
+                  name="restaurant-outline"
+                  size={22}
+                  color={colors.primary}
+                />
+              </View>
 
-          <View style={styles.sectionHeader}>
-            <Text
-              style={[
-                styles.sectionTitle,
-                { color: colors.text },
-              ]}
-            >
-              Today's nutrition
-            </Text>
+              <View style={styles.mealInfo}>
+                <Text
+                  style={[
+                    styles.mealTitle,
+                    { color: colors.text },
+                  ]}
+                >
+                  {mealCount === 0
+                    ? "No meals logged"
+                    : `${mealCount} ${
+                        mealCount === 1
+                          ? "meal"
+                          : "meals"
+                      } logged today`}
+                </Text>
+
+                <Text
+                  style={[
+                    styles.mealSubtitle,
+                    { color: colors.subtext },
+                  ]}
+                >
+                  {mealCount === 0
+                    ? "Start tracking your food to see your daily nutrition."
+                    : `${Math.round(
+                        data.calories
+                      )} calories recorded today`}
+                </Text>
+              </View>
+
+              <Pressable
+                style={[
+                  styles.arrowButton,
+                  {
+                    backgroundColor:
+                      ${colors.primary}18,
+                  },
+                ]}
+                onPress={() =>
+                  router.push("/dashboard/meals")
+                }
+                hitSlop={8}
+              >
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={colors.primary}
+                />
+              </Pressable>
+            </View>
 
             <Pressable
+              style={[
+                styles.tipCard,
+                {
+                  backgroundColor: colors.primary,
+                },
+              ]}
               onPress={() =>
                 router.push("/dashboard/progress")
               }
             >
-              <Text
-                style={[
-                  styles.viewAll,
-                  { color: colors.primary },
-                ]}
-              >
-                View progress
-              </Text>
-            </Pressable>
-          </View>
+              <View style={styles.tipIcon}>
+                <Ionicons
+                  name="sparkles"
+                  size={21}
+                  color="#111111"
+                />
+              </View>
 
-          <View style={styles.statsGrid}>
-            <StatCard
-              icon="flame-outline"
-              title="Calories"
-              value={Math.round(data.calories).toString()}
-              target={Math.round(goals.calories).toString()}
-              unit="kcal"
-              progress={calorieProgress}
-              colors={colors}
-            />
+              <View style={styles.tipContent}>
+                <Text style={styles.tipLabel}>
+                  TENAFIT INSIGHT
+                </Text>
 
-            <StatCard
-              icon="fitness-outline"
-              title="Protein"
-              value={Math.round(data.protein).toString()}
-              target={Math.round(goals.protein).toString()}
-              unit="g"
-              progress={proteinProgress}
-              colors={colors}
-            />
+                <Text style={styles.tipText}>
+                  {dailyInsight}
+                </Text>
+              </View>
 
-            <StatCard
-              icon="leaf-outline"
-              title="Carbs"
-              value={Math.round(data.carbs).toString()}
-              target={Math.round(goals.carbs).toString()}
-              unit="g"
-              progress={carbsProgress}
-              colors={colors}
-            />
-
-            <StatCard
-              icon="water-outline"
-              title="Fat"
-              value={Math.round(data.fat).toString()}
-              target={Math.round(goals.fat).toString()}
-              unit="g"
-              progress={fatProgress}
-              colors={colors}
-            />
-          </View>
-
-          <View style={styles.sectionHeader}>
-            <Text
-              style={[
-                styles.sectionTitle,
-                { color: colors.text },
-              ]}
-            >
-              Quick actions
-            </Text>
-          </View>
-
-          <View style={styles.actionRow}>
-            <ActionCard
-              icon="restaurant-outline"
-              title="Add meal"
-              subtitle="Track your food"
-              colors={colors}
-              onPress={() =>
-                router.push("/dashboard/meals")
-              }
-            />
-
-            <ActionCard
-              icon="scan-outline"
-              title="Scan food"
-              subtitle="Coming soon"
-              colors={colors}
-              onPress={() =>
-                router.push("/dashboard/meals")
-              }
-            />
-          </View>
-
-          <View style={styles.sectionHeader}>
-            <Text
-              style={[
-                styles.sectionTitle,
-                { color: colors.text },
-              ]}
-            >
-              Daily activity
-            </Text>
-          </View>
-
-          <View style={styles.activityRow}>
-            <ActivityCard
-              icon="water-outline"
-              title="Water"
-              value={`${data.water.toFixed(1)} L`}
-              target={`${goals.water.toFixed(1)} L`}
-              progress={waterProgress}
-              colors={colors}
-              onPress={() =>
-                router.push("/dashboard/water")
-              }
-            />
-
-            <ActivityCard
-              icon="walk-outline"
-              title="Steps"
-              value={data.steps.toLocaleString()}
-              target={goals.steps.toLocaleString()}
-              progress={stepsProgress}
-              colors={colors}
-              onPress={() =>
-                router.push("/dashboard/workouts")
-              }
-            />
-          </View>
-
-          <View
-            style={[
-              styles.mealCard,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.mealIcon,
-                { backgroundColor: `${colors.primary}18` },
-              ]}
-            >
-              <Ionicons
-                name="restaurant-outline"
-                size={22}
-                color={colors.primary}
-              />
-            </View>
-
-            <View style={styles.mealInfo}>
-              <Text
-                style={[
-                  styles.mealTitle,
-                  { color: colors.text },
-                ]}
-              >
-                {mealCount === 0
-                  ? "No meals logged"
-                  : `${mealCount} meals logged today`}
-              </Text>
-
-              <Text
-                style={[
-                  styles.mealSubtitle,
-                  { color: colors.subtext },
-                ]}
-              >
-                {mealCount === 0
-                  ? "Start tracking your food to see your daily nutrition."
-                  : `${Math.round(
-                      data.calories
-                    )} calories recorded today`}
-              </Text>
-            </View>
-
-            <Pressable
-              style={[
-                styles.arrowButton,
-                { backgroundColor: `${colors.primary}18` },
-              ]}
-              onPress={() => router.push("/dashboard/meals")}
-            >
               <Ionicons
                 name="chevron-forward"
                 size={18}
-                color={colors.primary}
+                color="#111111"
               />
             </Pressable>
           </View>
-
-          <View
-            style={[
-              {
-                width: `${Math.min(overallProgress, 100)}%`,
-                backgroundColor: colors.primary,
-              },
-            ]}
-          >
-            <View style={styles.tipIcon}>
-              <Ionicons
-                name="bulb-outline"
-                size={23}
-                color="#111111"
-              />
-            </View>
-
-            <View style={styles.tipContent}>
-              <Text
-                style={[
-                  styles.tipLabel,
-                  { backgroundColor: `${colors.primary}18` },
-                ]}
-              >
-                DAILY TIP
-              </Text>
-
-              <Text style={styles.tipText}>
-                Stay consistent, even on your off days. Small habits build lasting results.
-              </Text>
-            </View>
-          </View>
         </ScrollView>
+
+        <View
+          style={[
+            styles.bottomNav,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <HomeNavItem
+            icon="home"
+            label="Home"
+            active
+            colors={colors}
+            onPress={() => router.push("/home")}
+          />
+
+          <HomeNavItem
+            icon="calendar-outline"
+            label="Plan"
+            colors={colors}
+            onPress={() =>
+              router.push("/dashboard/plan")
+            }
+          />
+
+          <Pressable
+style={[
+              styles.navCenter,
+              { backgroundColor: colors.primary },
+            ]}
+            onPress={() =>
+              router.push("/dashboard/meals")
+            }
+          >
+            <Ionicons
+              name="add"
+              size={27}
+              color="#111111"
+            />
+          </Pressable>
+
+          <HomeNavItem
+            icon="bar-chart-outline"
+            label="Progress"
+            colors={colors}
+            onPress={() =>
+              router.push("/dashboard/progress")
+            }
+          />
+
+          <HomeNavItem
+            icon="person-outline"
+            label="Profile"
+            colors={colors}
+            onPress={() =>
+              router.push("/dashboard/profile")
+            }
+          />
+        </View>
       </View>
     </SafeAreaView>
+  );
+}
+
+function ProgressRing({
+  progress,
+  colors,
+}: {
+  progress: number;
+  colors: any;
+}) {
+
+function ProgressRing({
+  progress,
+  colors,
+}: {
+  progress: number;
+  colors: any;
+}) {
+  const size = 94;
+  const strokeWidth = 7;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const safeProgress = Math.max(
+    0,
+    Math.min(progress, 100)
+  );
+
+  const strokeDashoffset =
+    circumference -
+    (safeProgress / 100) * circumference;
+
+  return (
+    <View
+      style={[
+        styles.heroCircle,
+        {
+          width: size,
+          height: size,
+        },
+      ]}
+    >
+      <Svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+      >
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={colors.border}
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+
+        {safeProgress > 0 && (
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke={colors.primary}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            fill="none"
+            strokeDasharray={`${circumference} ${circumference}`}
+            strokeDashoffset={strokeDashoffset}
+            transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          />
+        )}
+      </Svg>
+
+      <View style={styles.heroCircleContent}>
+        <Text
+          style={[
+            styles.heroPercentage,
+            { color: colors.text },
+          ]}
+        >
+          {safeProgress}%
+        </Text>
+
+        <Text
+          style={[
+            styles.heroComplete,
+            { color: colors.subtext },
+          ]}
+        >
+          done
+        </Text>
+      </View>
+    </View>
   );
 }
 
@@ -494,6 +694,11 @@ function StatCard({
   progress: number;
   colors: any;
 }) {
+  const percentage = Math.max(
+    0,
+    Math.min(progress, 1)
+  );
+
   return (
     <View
       style={[
@@ -508,7 +713,9 @@ function StatCard({
         <View
           style={[
             styles.statIcon,
-            { backgroundColor: `${colors.primary}18` },
+            {
+              backgroundColor: `${colors.primary}18`,
+            },
           ]}
         >
           <Ionicons
@@ -561,15 +768,17 @@ function StatCard({
           { backgroundColor: colors.border },
         ]}
       >
-        <View
-          style={[
-            styles.statFill,
-            {
-              width: `${Math.min(progress * 100, 100)}%`,
-              backgroundColor: colors.primary,
-            },
-          ]}
-        />
+        {percentage > 0 && (
+          <View
+            style={[
+              styles.statFill,
+              {
+                width: `${percentage * 100}%`,
+                backgroundColor: colors.primary,
+              },
+            ]}
+          />
+        )}
       </View>
     </View>
   );
@@ -632,6 +841,7 @@ function ActionCard({
     </Pressable>
   );
 }
+
 function ActivityCard({
   icon,
   title,
@@ -649,6 +859,11 @@ function ActivityCard({
   colors: any;
   onPress: () => void;
 }) {
+  const percentage = Math.max(
+    0,
+    Math.min(progress, 1)
+  );
+
   return (
     <Pressable
       style={[
@@ -663,7 +878,9 @@ function ActivityCard({
       <View
         style={[
           styles.activityIcon,
-          { backgroundColor: `${colors.primary}18` },
+          {
+            backgroundColor: `${colors.primary}18`,
+          },
         ]}
       >
         <Ionicons
@@ -706,16 +923,62 @@ function ActivityCard({
           { backgroundColor: colors.border },
         ]}
       >
-        <View
-          style={[
-            styles.activityFill,
-            {
-              width: `${Math.min(progress * 100, 100)}%`,
-              backgroundColor: colors.primary,
-            },
-          ]}
-        />
+        {percentage > 0 && (
+          <View
+            style={[
+              styles.activityFill,
+              {
+                width: `${percentage * 100}%`,
+                backgroundColor: colors.primary,
+              },
+            ]}
+          />
+        )}
       </View>
+    </Pressable>
+  );
+}
+
+function HomeNavItem({
+  icon,
+  label,
+  active = false,
+  colors,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  active?: boolean;
+  colors: any;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={styles.navItem}
+      onPress={onPress}
+    >
+      <Ionicons
+        name={icon}
+        size={21}
+        color={
+          active
+            ? colors.primary
+            : colors.subtext
+        }
+      />
+
+      <Text
+        style={[
+          styles.navLabel,
+          {
+            color: active
+              ? colors.primary
+              : colors.subtext,
+          },
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -732,10 +995,18 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 18,
     paddingTop: 12,
-    paddingBottom: 110,
+    paddingBottom: 105,
   },
 
-  header: {
+  largeScreenContent: {
+    alignItems: "center",
+  },
+
+  mobileFrame: {
+    width: "100%",
+    maxWidth: 520,
+  },
+header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -841,13 +1112,17 @@ const styles = StyleSheet.create({
   },
 
   heroCircle: {
-    width: 91,
-    height: 91,
-    borderRadius: 46,
-    borderWidth: 6,
+    borderRadius: 47,
     alignItems: "center",
     justifyContent: "center",
     marginLeft: 12,
+    position: "relative",
+  },
+
+  heroCircleContent: {
+    position: "absolute",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   heroPercentage: {
@@ -890,7 +1165,8 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "800",
   },
-statsGrid: {
+
+  statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
@@ -1006,8 +1282,7 @@ statsGrid: {
     alignItems: "center",
     justifyContent: "center",
   },
-
-  activityTitle: {
+activityTitle: {
     fontSize: 10,
     fontWeight: "800",
     marginTop: 11,
@@ -1080,8 +1355,9 @@ statsGrid: {
   },
 
   tipCard: {
+    minHeight: 80,
     borderRadius: 20,
-    padding: 17,
+    padding: 15,
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 8,
@@ -1099,20 +1375,57 @@ statsGrid: {
   tipContent: {
     flex: 1,
     marginLeft: 13,
+    marginRight: 8,
   },
 
   tipLabel: {
     color: "#111111",
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: "900",
-    letterSpacing: 1,
+    letterSpacing: 1.1,
   },
 
   tipText: {
     color: "#111111",
-    fontSize: 11,
-    lineHeight: 16,
+    fontSize: 10,
+    lineHeight: 15,
     fontWeight: "700",
     marginTop: 5,
+  },
+
+  bottomNav: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    bottom: 10,
+    height: 70,
+    borderRadius: 22,
+    borderWidth: 1,
+    paddingHorizontal: 7,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+  },
+
+  navItem: {
+    flex: 1,
+    height: 58,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+  },
+
+  navLabel: {
+    fontSize: 8,
+    fontWeight: "800",
+  },
+
+  navCenter: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 5,
   },
 });
