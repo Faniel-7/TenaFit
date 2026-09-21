@@ -1,13 +1,16 @@
 import React, { useMemo, useState } from "react";
 import {
+  ActivityIndicator,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+
 import DashboardPage from "../../components/dashboard/DashboardPage";
 import { foodDatabase, searchFoods } from "../../data/foods/foodDatabase";
 import { Food, MealType } from "../../types/nutrition";
@@ -16,10 +19,12 @@ import { useTheme } from "../../context/ThemeContext";
 
 type FoodFilter = "all" | "local" | "other";
 
+type IconName = keyof typeof Ionicons.glyphMap;
+
 const mealTypes: {
   key: MealType;
   label: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IconName;
 }[] = [
   {
     key: "breakfast",
@@ -43,14 +48,52 @@ const mealTypes: {
   },
 ];
 
+const mealAccent: Record<
+  MealType,
+  {
+    icon: string;
+    background: string;
+  }
+> = {
+  breakfast: {
+    icon: "#FFD54A",
+    background: "#2A2412",
+  },
+  lunch: {
+    icon: "#D7F52C",
+    background: "#20280E",
+  },
+  dinner: {
+    icon: "#9FA8DA",
+    background: "#171A2B",
+  },
+  snack: {
+    icon: "#67E8F9",
+    background: "#10242A",
+  },
+};
+
 export default function MealsScreen() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const { width } = useWindowDimensions();
+
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FoodFilter>("all");
   const [selectedMealType, setSelectedMealType] =
     useState<MealType>("breakfast");
+  const [addingFoodId, setAddingFoodId] =
+    useState<string | null>(null);
 
-  const { meals, addMeal, removeMeal, data, goals } = useAppData();
+  const {
+    meals,
+    addMeal,
+    removeMeal,
+    data,
+    goals,
+  } = useAppData();
+
+  const isCompact = width < 390;
+  const isWide = width >= 900;
 
   const foods = useMemo(() => {
     let results: Food[] = query.trim()
@@ -67,7 +110,9 @@ export default function MealsScreen() {
   }, [query, filter]);
 
   const getMealItems = (mealType: MealType) =>
-    meals.filter((meal) => meal.mealType === mealType);
+    meals.filter(
+      (meal) => meal.mealType === mealType
+    );
 
   const getMealCalories = (mealType: MealType) =>
     getMealItems(mealType).reduce(
@@ -75,714 +120,1111 @@ export default function MealsScreen() {
       0
     );
 
+  const consumedCalories = Math.max(
+    0,
+    Number(data.calories) || 0
+  );
+
+  const calorieTarget = Math.max(
+    0,
+    Number(goals.calories) || 0
+  );
+
+  const calorieProgress =
+    calorieTarget > 0
+      ? Math.min(
+          consumedCalories / calorieTarget,
+          1
+        )
+      : 0;
+
+  const caloriesRemaining = Math.max(
+    0,
+    calorieTarget - consumedCalories
+  );
+
   const handleAddFood = async (food: Food) => {
-    await addMeal(food, selectedMealType);
+    try {
+      setAddingFoodId(food.id);
+      await addMeal(food, selectedMealType);
+    } finally {
+      setAddingFoodId(null);
+    }
   };
 
-  const caloriesProgress = Math.min(
-    data.calories / Math.max(goals.calories, 1),
-    1
-  );
+  const selectedMealLabel =
+    mealTypes.find(
+      (item) => item.key === selectedMealType
+    )?.label ?? "Breakfast";
 
   return (
     <DashboardPage
       title="Meals"
-      subtitle="Track your meals and build better eating habits."
+      subtitle="Track what you eat and stay aligned with your plan."
       icon="restaurant-outline"
     >
       <View
         style={[
-          styles.summaryCard,
+          styles.pageContent,
           {
-            backgroundColor: colors.card,
-            borderColor: colors.border,
+            maxWidth: isWide ? 1120 : 620,
           },
         ]}
       >
-        <View style={styles.summaryTop}>
-          <View>
-            <Text
-              style={[
-                styles.summaryEyebrow,
-                { color: colors.primary },
-              ]}
-            >
-              TODAY'S NUTRITION
-            </Text>
-
-            <Text
-              style={[
-                styles.summaryTitle,
-                { color: colors.text },
-              ]}
-            >
-              {Math.round(data.calories)} kcal
-            </Text>
-
-            <Text
-              style={[
-                styles.summarySubtitle,
-                { color: colors.subtext },
-              ]}
-            >
-              of {Math.round(goals.calories)} kcal daily target
-            </Text>
-          </View>
-
-          <View
-            style={[
-              styles.summaryIcon,
-              { backgroundColor: colors.background },
-            ]}
-          >
-            <Ionicons
-              name="flame-outline"
-              size={27}
-              color={colors.primary}
-            />
-          </View>
-        </View>
-
         <View
           style={[
-            styles.progressTrack,
-            { backgroundColor: colors.border },
-          ]}
-        >
-          <View
-            style={[
-              styles.progressFill,
-              {
-                width: `${Math.round(
-                  caloriesProgress * 100
-                )}%`,
-                backgroundColor: colors.primary,
-              },
-            ]}
-          />
-        </View>
-        <View style={styles.summaryStats}>
-          <SummaryStat
-            label="Protein"
-            value={`${Math.round(data.protein)}g`}
-            target={`${Math.round(goals.protein)}g`}
-            colors={colors}
-          />
-
-          <SummaryStat
-            label="Carbs"
-            value={`${Math.round(data.carbs)}g`}
-            target={`${Math.round(goals.carbs)}g`}
-            colors={colors}
-          />
-
-          <SummaryStat
-            label="Fat"
-            value={`${Math.round(data.fat)}g`}
-            target={`${Math.round(goals.fat)}g`}
-            colors={colors}
-          />
-        </View>
-      </View>
-
-      <View style={styles.sectionHeader}>
-        <View style={styles.sectionHeading}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: colors.text },
-            ]}
-          >
-            Today's meals
-          </Text>
-
-          <Text
-            style={[
-              styles.sectionSubtitle,
-              { color: colors.subtext },
-            ]}
-          >
-            Organize everything you've eaten today.
-          </Text>
-        </View>
-
-        <View
-          style={[
-            styles.mealCount,
-            { backgroundColor: colors.card },
-          ]}
-        >
-          <Text
-            style={[
-              styles.mealCountText,
-              { color: colors.primary },
-            ]}
-          >
-            {meals.length}
-          </Text>
-        </View>
-      </View>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.mealTypeScroll}
-      >
-        {mealTypes.map((mealType) => {
-          const active =
-            selectedMealType === mealType.key;
-          const count = getMealItems(mealType.key).length;
-
-          return (
-            <TouchableOpacity
-              key={mealType.key}
-              onPress={() =>
-                setSelectedMealType(mealType.key)
-              }
-              activeOpacity={0.8}
-              style={[
-                styles.mealTypeButton,
-                {
-                  backgroundColor: active
-                    ? colors.primary
-                    : colors.card,
-                  borderColor: active
-                    ? colors.primary
-                    : colors.border,
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.mealTypeIcon,
-                  {
-                    backgroundColor: active
-                      ? "rgba(0,0,0,0.10)"
-                      : colors.background,
-                  },
-                ]}
-              >
-                <Ionicons
-                  name={mealType.icon}
-                  size={17}
-                  color={
-                    active
-                      ? "#05070B"
-                      : colors.subtext
-                  }
-                />
-              </View>
-
-              <View>
-                <Text
-                  style={[
-                    styles.mealTypeLabel,
-                    {
-                      color: active
-                        ? "#05070B"
-                        : colors.text,
-                    },
-                  ]}
-                >
-                  {mealType.label}
-                </Text>
-
-                <Text
-                  style={[
-                    styles.mealTypeCount,
-                    {
-                      color: active
-                        ? "rgba(5,7,11,0.65)"
-                        : colors.subtext,
-                    },
-                  ]}
-                >
-                  {count} {count === 1 ? "food" : "foods"}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-
-      <View style={styles.mealSections}>
-        {mealTypes.map((mealType) => {
-          const items = getMealItems(mealType.key);
-          const calories = getMealCalories(mealType.key);
-          const active =
-            selectedMealType === mealType.key;
-return (
-            <View
-              key={mealType.key}
-              style={[
-                styles.mealSection,
-                active && styles.activeMealSection,
-              ]}
-            >
-              <View style={styles.mealSectionHeader}>
-                <View style={styles.mealSectionTitleRow}>
-                  <View
-                    style={[
-                      styles.mealSectionIcon,
-                      {
-                        backgroundColor:
-                          colors.card,
-                        borderColor:
-                          colors.border,
-                      },
-                    ]}
-                  >
-                    <Ionicons
-                      name={mealType.icon}
-                      size={18}
-                      color={colors.primary}
-                    />
-                  </View>
-
-                  <View>
-                    <Text
-                      style={[
-                        styles.mealSectionTitle,
-                        { color: colors.text },
-                      ]}
-                    >
-                      {mealType.label}
-                    </Text>
-
-                    <Text
-                      style={[
-                        styles.mealSectionSubtitle,
-                        { color: colors.subtext },
-                      ]}
-                    >
-                      {items.length > 0
-                        ? `${items.length} ${
-                            items.length === 1 ? "food" : "foods"
-                          } logged`
-                        : "Nothing logged yet"}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.mealSectionRight}>
-                  <Text
-                    style={[
-                      styles.mealCalories,
-                      { color: colors.primary },
-                    ]}
-                  >
-                    {Math.round(calories)}
-                  </Text>
-
-                  <Text
-                    style={[
-                      styles.mealCaloriesUnit,
-                      { color: colors.subtext },
-                    ]}
-                  >
-                    kcal
-                  </Text>
-                </View>
-              </View>
-
-              {items.length > 0 ? (
-                <View
-                  style={[
-                    styles.mealItems,
-                    {
-                      backgroundColor: colors.card,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                >
-                  {items.map((meal, index) => (
-                    <View
-                      key={meal.id}
-                      style={[
-                        styles.mealItem,
-                        index < items.length - 1 && {
-                          borderBottomWidth: 1,
-                          borderBottomColor:
-                            colors.border,
-                        },
-                      ]}
-                    >
-                      <View
-                        style={[
-                          styles.foodMiniIcon,
-                          {
-                            backgroundColor:
-                              colors.background,
-                          },
-                        ]}
-                      >
-                        <Ionicons
-                          name="nutrition-outline"
-                          size={18}
-                          color={colors.primary}
-                        />
-                      </View>
-
-                      <View
-                        style={styles.mealItemInfo}
-                      >
-                        <Text
-                          style={[
-styles.mealItemName,
-                            { color: colors.text },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {meal.food.nameEnglish}
-                        </Text>
-
-                        <Text
-                          style={[
-                            styles.mealItemMacros,
-                            { color: colors.subtext },
-                          ]}
-                        >
-                          {Math.round(meal.calories)} kcal
-                          {"  ·  "}
-                          {Math.round(meal.protein)}g protein
-                        </Text>
-                      </View>
-
-                      <TouchableOpacity
-                        onPress={() =>
-                          removeMeal(meal.id)
-                        }
-                        activeOpacity={0.8}
-                        style={[
-                          styles.removeButton,
-                          {
-                            backgroundColor:
-                              colors.background,
-                          },
-                        ]}
-                      >
-                        <Ionicons
-                          name="trash-outline"
-                          size={17}
-                          color={colors.danger}
-                        />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <TouchableOpacity
-                  onPress={() =>
-                    setSelectedMealType(mealType.key)
-                  }
-                  activeOpacity={0.8}
-                  style={[
-                    styles.emptyMeal,
-                    {
-                      backgroundColor:
-                        colors.card,
-                      borderColor:
-                        colors.border,
-                    },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.emptyMealIcon,
-                      {
-                        backgroundColor:
-                          colors.background,
-                      },
-                    ]}
-                  >
-                    <Ionicons
-                      name="add-outline"
-                      size={22}
-                      color={colors.primary}
-                    />
-                  </View>
-
-                  <View style={styles.emptyMealText}>
-                    <Text
-                      style={[
-                        styles.emptyMealTitle,
-                        { color: colors.text },
-                      ]}
-                    >
-                      Add a food
-                    </Text>
-
-                    <Text
-                      style={[
-                        styles.emptyMealSubtitle,
-                        { color: colors.subtext },
-                      ]}
-                    >
-                      Choose a food below for{" "}
-                      {mealType.label.toLowerCase()}.
-                    </Text>
-                  </View>
-
-                  <Ionicons
-                    name="chevron-forward"
-                    size={18}
-                    color={colors.subtext}
-                  />
-                </TouchableOpacity>
-              )}
-            </View>
-          );
-        })}
-      </View>
-
-      <View style={styles.sectionHeader}>
-        <View style={styles.sectionHeading}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: colors.text },
-            ]}
-          >
-            Food database
-          </Text>
-
-          <Text
-            style={[
-              styles.sectionSubtitle,
-              { color: colors.subtext },
-            ]}
-          >
-            Find a food and add it to your selected meal.
-          </Text>
-        </View>
-<View
-          style={[
-            styles.databaseCount,
-            { backgroundColor: colors.card },
-          ]}
-        >
-          <Ionicons
-            name="layers-outline"
-            size={15}
-            color={colors.primary}
-          />
-
-          <Text
-            style={[
-              styles.databaseCountText,
-              { color: colors.subtext },
-            ]}
-          >
-            {foodDatabase.length}
-          </Text>
-        </View>
-      </View>
-
-      <View
-        style={[
-          styles.searchContainer,
-          {
-            backgroundColor: colors.card,
-            borderColor: colors.border,
-          },
-        ]}
-      >
-        <Ionicons
-          name="search-outline"
-          size={20}
-          color={colors.subtext}
-        />
-
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search foods..."
-          placeholderTextColor={colors.subtext}
-          style={[
-            styles.searchInput,
-            { color: colors.text },
-          ]}
-        />
-
-        {query.length > 0 && (
-          <TouchableOpacity
-            onPress={() => setQuery("")}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name="close-circle"
-              size={20}
-              color={colors.subtext}
-            />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterScroll}
-      >
-        <FilterButton
-          label="All foods"
-          icon="grid-outline"
-          active={filter === "all"}
-          onPress={() => setFilter("all")}
-          colors={colors}
-        />
-
-        <FilterButton
-          label="Ethiopian"
-          icon="location-outline"
-          active={filter === "local"}
-          onPress={() => setFilter("local")}
-          colors={colors}
-        />
-
-        <FilterButton
-          label="International"
-          icon="globe-outline"
-          active={filter === "other"}
-          onPress={() => setFilter("other")}
-          colors={colors}
-        />
-      </ScrollView>
-
-      <View style={styles.resultHeader}>
-        <View>
-          <Text
-            style={[
-              styles.resultTitle,
-              { color: colors.text },
-            ]}
-          >
-            Available foods
-          </Text>
-
-          <Text
-            style={[
-              styles.resultSubtitle,
-              { color: colors.subtext },
-            ]}
-          >
-            Adding to{" "}
-            {
-              mealTypes.find(
-                (meal) =>
-                  meal.key === selectedMealType
-              )?.label
-            }
-          </Text>
-        </View>
-
-        <View
-          style={[
-            styles.resultBadge,
-            { backgroundColor: colors.primary },
-          ]}
-        >
-          <Text style={styles.resultBadgeText}>
-            {foods.length}
-          </Text>
-        </View>
-      </View>
-
-      {foods.length > 0 ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.foodRow}
-        >
-          {foods.map((food) => (
-            <FoodCard
-              key={food.id}
-              food={food}
-              onAdd={() => handleAddFood(food)}
-              mealType={selectedMealType}
-              colors={colors}
-            />
-          ))}
-        </ScrollView>
-      ) : (
-        <View
-          style={[
-            styles.empty,
+            styles.heroCard,
             {
               backgroundColor: colors.card,
               borderColor: colors.border,
             },
           ]}
         >
+          <View style={styles.heroTop}>
+            <View style={styles.heroHeading}>
+<View style={styles.eyebrowRow}>
+                <View
+                  style={[
+                    styles.eyebrowDot,
+                    {
+                      backgroundColor:
+                        colors.primary,
+                    },
+                  ]}
+                />
+
+                <Text
+                  style={[
+                    styles.eyebrow,
+                    {
+                      color: colors.primary,
+                    },
+                  ]}
+                >
+                  TODAY'S NUTRITION
+                </Text>
+              </View>
+
+              <Text
+                style={[
+                  styles.heroCalories,
+                  {
+                    color: colors.text,
+                    fontSize: isCompact ? 29 : 34,
+                  },
+                ]}
+              >
+                {Math.round(consumedCalories)}
+                <Text
+                  style={[
+                    styles.heroCaloriesUnit,
+                    {
+                      color: colors.subtext,
+                    },
+                  ]}
+                >
+                  {" "}
+                  kcal
+                </Text>
+              </Text>
+
+              <Text
+                style={[
+                  styles.heroSubtitle,
+                  {
+                    color: colors.subtext,
+                  },
+                ]}
+              >
+                of {Math.round(calorieTarget)} kcal daily
+                target
+              </Text>
+            </View>
+
+            <View
+              style={[
+                styles.heroIcon,
+                {
+                  backgroundColor: colors.primary,
+                },
+              ]}
+            >
+              <Ionicons
+                name="flame"
+                size={27}
+                color="#111111"
+              />
+            </View>
+          </View>
+
+          <View style={styles.progressRow}>
+            <View
+              style={[
+                styles.progressTrack,
+                {
+                  backgroundColor: isDark
+                    ? "#292D34"
+                    : "#E5E7EB",
+                },
+              ]}
+            >
+              {calorieProgress > 0 && (
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${calorieProgress * 100}%`,
+                      backgroundColor:
+                        colors.primary,
+                    },
+                  ]}
+                />
+              )}
+            </View>
+
+            <Text
+              style={[
+                styles.progressPercent,
+                {
+                  color: colors.text,
+                },
+              ]}
+            >
+              {Math.round(calorieProgress * 100)}%
+            </Text>
+          </View>
+
+          <View style={styles.remainingRow}>
+            <View>
+              <Text
+                style={[
+                  styles.remainingLabel,
+                  {
+                    color: colors.subtext,
+                  },
+                ]}
+              >
+                REMAINING
+              </Text>
+
+              <Text
+                style={[
+                  styles.remainingValue,
+                  {
+                    color:
+                      caloriesRemaining > 0
+                        ? colors.primary
+                        : colors.danger,
+                  },
+                ]}
+              >
+                {Math.round(caloriesRemaining)} kcal
+              </Text>
+            </View>
+
+            <View
+              style={[
+                styles.statusPill,
+                {
+                  backgroundColor:
+                    calorieProgress >= 1
+                      ? isDark
+                        ? "#2A1717"
+: "#FEECEC"
+                      : isDark
+                        ? "#20280E"
+                        : "#F1F8D2",
+                },
+              ]}
+            >
+              <Ionicons
+                name={
+                  calorieProgress >= 1
+                    ? "checkmark-circle-outline"
+                    : "flash-outline"
+                }
+                size={15}
+                color={
+                  calorieProgress >= 1
+                    ? colors.danger
+                    : colors.primary
+                }
+              />
+
+              <Text
+                style={[
+                  styles.statusText,
+                  {
+                    color:
+                      calorieProgress >= 1
+                        ? colors.danger
+                        : colors.primary,
+                  },
+                ]}
+              >
+                {calorieProgress >= 1
+                  ? "Target reached"
+                  : "On track"}
+              </Text>
+            </View>
+          </View>
+
           <View
             style={[
-              styles.emptyIcon,
-              { backgroundColor: colors.background },
+              styles.macroSummary,
+              {
+                borderTopColor: colors.border,
+              },
+            ]}
+          >
+            <NutritionStat
+              icon="fitness-outline"
+              label="Protein"
+              value={`${Math.round(data.protein)}g`}
+              target={`${Math.round(goals.protein)}g`}
+              color="#F97316"
+              colors={colors}
+            />
+
+            <NutritionStat
+              icon="leaf-outline"
+              label="Carbs"
+              value={`${Math.round(data.carbs)}g`}
+              target={`${Math.round(goals.carbs)}g`}
+              color="#22C55E"
+              colors={colors}
+            />
+
+            <NutritionStat
+              icon="water-outline"
+              label="Fat"
+              value={`${Math.round(data.fat)}g`}
+              target={`${Math.round(goals.fat)}g`}
+              color="#38BDF8"
+              colors={colors}
+            />
+          </View>
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionText}>
+            <Text
+              style={[
+                styles.sectionTitle,
+                {
+                  color: colors.text,
+                },
+              ]}
+            >
+              Today's meals
+            </Text>
+
+            <Text
+              style={[
+                styles.sectionSubtitle,
+                {
+                  color: colors.subtext,
+                },
+              ]}
+            >
+              Your food log for today.
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.countBadge,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
             ]}
           >
             <Ionicons
-              name="search-outline"
-              size={27}
+              name="restaurant-outline"
+              size={14}
               color={colors.primary}
             />
-          </View>
-<Text
-            style={[
-              styles.emptyTitle,
-              { color: colors.text },
-            ]}
-          >
-            No foods found
-          </Text>
 
-          <Text
+            <Text
+              style={[
+                styles.countBadgeText,
+                {
+                  color: colors.text,
+                },
+              ]}
+            >
+              {meals.length}
+            </Text>
+          </View>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={
+            styles.mealTypeScroll
+          }
+        >
+          {mealTypes.map((mealType) => {
+            const active =
+              selectedMealType === mealType.key;
+            const count =
+              getMealItems(mealType.key).length;
+            const accent =
+              mealAccent[mealType.key];
+
+            return (
+              <Pressable
+                key={mealType.key}
+onPress={() =>
+                  setSelectedMealType(
+                    mealType.key
+                  )
+                }
+                style={({ pressed }) => [
+                  styles.mealTypeButton,
+                  {
+                    backgroundColor: active
+                      ? colors.primary
+                      : colors.card,
+                    borderColor: active
+                      ? colors.primary
+                      : colors.border,
+                    opacity: pressed ? 0.75 : 1,
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.mealTypeIcon,
+                    {
+                      backgroundColor: active
+                        ? "rgba(0,0,0,0.10)"
+                        : isDark
+                          ? accent.background
+                          : "#F3F4F6",
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={mealType.icon}
+                    size={17}
+                    color={
+                      active
+                        ? "#111111"
+                        : accent.icon
+                    }
+                  />
+                </View>
+
+                <View>
+                  <Text
+                    style={[
+                      styles.mealTypeLabel,
+                      {
+                        color: active
+                          ? "#111111"
+                          : colors.text,
+                      },
+                    ]}
+                  >
+                    {mealType.label}
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.mealTypeCount,
+                      {
+                        color: active
+                          ? "rgba(17,17,17,0.62)"
+                          : colors.subtext,
+                      },
+                    ]}
+                  >
+                    {count}{" "}
+                    {count === 1
+                      ? "food"
+                      : "foods"}
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        <View style={styles.mealSections}>
+          {mealTypes.map((mealType) => {
+            const items =
+              getMealItems(mealType.key);
+            const calories =
+              getMealCalories(mealType.key);
+            const active =
+              selectedMealType === mealType.key;
+            const accent =
+              mealAccent[mealType.key];
+
+            return (
+              <View
+                key={mealType.key}
+                style={[
+                  styles.mealSection,
+                  active && {
+                    borderColor:
+                      colors.primary,
+                  },
+                ]}
+              >
+                <View style={styles.mealSectionHeader}>
+                  <View
+                    style={
+                      styles.mealSectionHeading
+                    }
+                  >
+                    <View
+                      style={[
+                        styles.mealSectionIcon,
+                        {
+                          backgroundColor:
+                            isDark
+                              ? accent.background
+                              : "#F3F4F6",
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name={mealType.icon}
+                        size={19}
+                        color={accent.icon}
+                      />
+                    </View>
+
+                    <View
+                      style={styles.mealSectionInfo}
+                    >
+                      <View
+style={
+                          styles.mealSectionTitleRow
+                        }
+                      >
+                        <Text
+                          style={[
+                            styles.mealSectionTitle,
+                            {
+                              color:
+                                colors.text,
+                            },
+                          ]}
+                        >
+                          {mealType.label}
+                        </Text>
+
+                        {active && (
+                          <View
+                            style={[
+                              styles.activeDot,
+                              {
+                                backgroundColor:
+                                  colors.primary,
+                              },
+                            ]}
+                          />
+                        )}
+                      </View>
+
+                      <Text
+                        style={[
+                          styles.mealSectionSubtitle,
+                          {
+                            color:
+                              colors.subtext,
+                          },
+                        ]}
+                      >
+                        {items.length > 0
+                          ? `${items.length} ${
+                              items.length ===
+                              1
+                                ? "food"
+                                : "foods"
+                            } logged`
+                          : "Nothing logged yet"}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View
+                    style={
+                      styles.mealCaloriesBlock
+                    }
+                  >
+                    <Text
+                      style={[
+                        styles.mealCalories,
+                        {
+                          color:
+                            colors.primary,
+                        },
+                      ]}
+                    >
+                      {Math.round(calories)}
+                    </Text>
+
+                    <Text
+                      style={[
+                        styles.mealCaloriesUnit,
+                        {
+                          color:
+                            colors.subtext,
+                        },
+                      ]}
+                    >
+                      kcal
+                    </Text>
+                  </View>
+                </View>
+
+                {items.length > 0 ? (
+                  <View
+                    style={[
+                      styles.loggedFoods,
+                      {
+                        backgroundColor:
+                          isDark
+                            ? "#111317"
+                            : "#F8F8F8",
+                        borderColor:
+                          colors.border,
+                      },
+                    ]}
+                  >
+                    {items.map((meal, index) => (
+                      <View
+                        key={meal.id}
+                        style={[
+                          styles.loggedFood,
+                          index <
+                            items.length - 1 && {
+                            borderBottomWidth: 1,
+                            borderBottomColor:
+                              colors.border,
+                          },
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.foodIcon,
+                            {
+                              backgroundColor:
+                                colors.card,
+                              borderColor:
+colors.border,
+                            },
+                          ]}
+                        >
+                          <Ionicons
+                            name="nutrition-outline"
+                            size={18}
+                            color={
+                              colors.primary
+                            }
+                          />
+                        </View>
+
+                        <View
+                          style={
+                            styles.loggedFoodInfo
+                          }
+                        >
+                          <Text
+                            style={[
+                              styles.loggedFoodName,
+                              {
+                                color:
+                                  colors.text,
+                              },
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {meal.food
+                              .nameEnglish}
+                          </Text>
+
+                          <Text
+                            style={[
+                              styles.loggedFoodMeta,
+                              {
+                                color:
+                                  colors.subtext,
+                              },
+                            ]}
+                          >
+                            {Math.round(
+                              meal.calories
+                            )}{" "}
+                            kcal ·{" "}
+                            {Math.round(
+                              meal.protein
+                            )}
+                            g protein
+                          </Text>
+                        </View>
+
+                        <Pressable
+                          onPress={() =>
+                            removeMeal(meal.id)
+                          }
+                          style={({ pressed }) => [
+                            styles.deleteButton,
+                            {
+                              backgroundColor:
+                                isDark
+                                  ? "#241719"
+                                  : "#FEECEC",
+                              opacity: pressed
+                                ? 0.65
+                                : 1,
+                            },
+                          ]}
+                        >
+                          <Ionicons
+                            name="trash-outline"
+                            size={16}
+                            color={
+                              colors.danger
+                            }
+                          />
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={() =>
+                      setSelectedMealType(
+                        mealType.key
+                      )
+                    }
+                    style={({ pressed }) => [
+                      styles.emptyMeal,
+                      {
+                        backgroundColor:
+                          colors.card,
+                        borderColor:
+                          colors.border,
+                        opacity: pressed
+                          ? 0.7
+                          : 1,
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.emptyMealIcon,
+                        {
+                          backgroundColor:
+                            isDark
+                              ? "#20280E"
+                              : "#F1F8D2",
+},
+                      ]}
+                    >
+                      <Ionicons
+                        name="add"
+                        size={21}
+                        color={
+                          colors.primary
+                        }
+                      />
+                    </View>
+
+                    <View
+                      style={
+                        styles.emptyMealInfo
+                      }
+                    >
+                      <Text
+                        style={[
+                          styles.emptyMealTitle,
+                          {
+                            color:
+                              colors.text,
+                          },
+                        ]}
+                      >
+                        Add your first food
+                      </Text>
+
+                      <Text
+                        style={[
+                          styles.emptyMealSubtitle,
+                          {
+                            color:
+                              colors.subtext,
+                          },
+                        ]}
+                      >
+                        Select {mealType.label.toLowerCase()}{" "}
+                        below to start logging.
+                      </Text>
+                    </View>
+
+                    <Ionicons
+                      name="chevron-forward"
+                      size={18}
+                      color={
+                        colors.subtext
+                      }
+                    />
+                  </Pressable>
+                )}
+              </View>
+            );
+          })}
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionText}>
+            <Text
+              style={[
+                styles.sectionTitle,
+                {
+                  color: colors.text,
+                },
+              ]}
+            >
+              Add food
+            </Text>
+
+            <Text
+              style={[
+                styles.sectionSubtitle,
+                {
+                  color: colors.subtext,
+                },
+              ]}
+            >
+              Adding to {selectedMealLabel}
+            </Text>
+          </View>
+
+          <View
             style={[
-              styles.emptyText,
-              { color: colors.subtext },
+              styles.databaseBadge,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
             ]}
           >
-            Try another search or change the filter.
-          </Text>
+            <Ionicons
+              name="layers-outline"
+              size={14}
+              color={colors.primary}
+            />
+
+            <Text
+              style={[
+                styles.databaseBadgeText,
+                {
+                  color: colors.subtext,
+                },
+              ]}
+            >
+              {foodDatabase.length}
+            </Text>
+          </View>
         </View>
-      )}
+
+        <View
+          style={[
+            styles.searchBox,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <Ionicons
+            name="search-outline"
+            size={20}
+            color={colors.subtext}
+          />
+
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search foods..."
+            placeholderTextColor={
+              colors.subtext
+            }
+            style={[
+              styles.searchInput,
+              {
+                color: colors.text,
+              },
+            ]}
+            returnKeyType="search"
+          />
+
+          {query.length > 0 && (
+            <Pressable
+              onPress={() => setQuery("")}
+            >
+              <Ionicons
+                name="close-circle"
+                size={20}
+                color={colors.subtext}
+              />
+            </Pressable>
+          )}
+        </View>
+<ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={
+            styles.filterScroll
+          }
+        >
+          <FilterButton
+            label="All foods"
+            icon="grid-outline"
+            active={filter === "all"}
+            onPress={() =>
+              setFilter("all")
+            }
+            colors={colors}
+          />
+
+          <FilterButton
+            label="Ethiopian"
+            icon="location-outline"
+            active={filter === "local"}
+            onPress={() =>
+              setFilter("local")
+            }
+            colors={colors}
+          />
+
+          <FilterButton
+            label="International"
+            icon="globe-outline"
+            active={filter === "other"}
+            onPress={() =>
+              setFilter("other")
+            }
+            colors={colors}
+          />
+        </ScrollView>
+
+        <View style={styles.resultsHeader}>
+          <View>
+            <Text
+              style={[
+                styles.resultsTitle,
+                {
+                  color: colors.text,
+                },
+              ]}
+            >
+              Available foods
+            </Text>
+
+            <Text
+              style={[
+                styles.resultsSubtitle,
+                {
+                  color: colors.subtext,
+                },
+              ]}
+            >
+              {foods.length}{" "}
+              {foods.length === 1
+                ? "food"
+                : "foods"}{" "}
+              available
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.resultsBadge,
+              {
+                backgroundColor:
+                  colors.primary,
+              },
+            ]}
+          >
+            <Text style={styles.resultsBadgeText}>
+              {foods.length}
+            </Text>
+          </View>
+        </View>
+
+        {foods.length > 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={
+              styles.foodCardsRow
+            }
+          >
+            {foods.map((food) => (
+              <FoodCard
+                key={food.id}
+                food={food}
+                onAdd={() =>
+                  handleAddFood(food)
+                }
+                adding={
+                  addingFoodId === food.id
+                }
+                colors={colors}
+                isDark={isDark}
+              />
+            ))}
+          </ScrollView>
+        ) : (
+          <View
+            style={[
+              styles.emptySearch,
+              {
+                backgroundColor:
+                  colors.card,
+                borderColor:
+                  colors.border,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.emptySearchIcon,
+                {
+                  backgroundColor:
+                    isDark
+                      ? "#20280E"
+                      : "#F1F8D2",
+                },
+              ]}
+            >
+              <Ionicons
+                name="search-outline"
+                size={27}
+                color={colors.primary}
+              />
+            </View>
+
+            <Text
+              style={[
+                styles.emptySearchTitle,
+                {
+                  color: colors.text,
+                },
+              ]}
+            >
+              No foods found
+            </Text>
+
+            <Text
+              style={[
+                styles.emptySearchText,
+                {
+                  color: colors.subtext,
+                },
+              ]}
+            >
+              Try another search or switch the food
+              category.
+            </Text>
+<Pressable
+              onPress={() => {
+                setQuery("");
+                setFilter("all");
+              }}
+              style={[
+                styles.clearButton,
+                {
+                  backgroundColor:
+                    colors.primary,
+                },
+              ]}
+            >
+              <Text
+                style={styles.clearButtonText}
+              >
+                Clear filters
+              </Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
     </DashboardPage>
   );
 }
 
-function SummaryStat({
+function NutritionStat({
+  icon,
   label,
   value,
   target,
+  color,
   colors,
 }: {
+  icon: IconName;
   label: string;
   value: string;
   target: string;
+  color: string;
   colors: any;
 }) {
   return (
-    <View style={styles.summaryStat}>
-      <Text
+    <View style={styles.nutritionStat}>
+      <View
         style={[
-          styles.summaryStatValue,
-          { color: colors.text },
+          styles.nutritionIcon,
+          {
+            backgroundColor:
+              colors.background,
+          },
         ]}
       >
-        {value}
-      </Text>
+        <Ionicons
+          name={icon}
+          size={15}
+          color={color}
+        />
+      </View>
+
+      <View style={styles.nutritionStatInfo}>
+        <Text
+          style={[
+            styles.nutritionStatValue,
+            {
+              color: colors.text,
+            },
+          ]}
+        >
+          {value}
+        </Text>
+
+        <Text
+          style={[
+            styles.nutritionStatLabel,
+            {
+              color: colors.subtext,
+            },
+          ]}
+        >
+          {label}
+        </Text>
+      </View>
 
       <Text
         style={[
-          styles.summaryStatLabel,
-          { color: colors.subtext },
-        ]}
-      >
-        {label}
-      </Text>
-
-      <Text
-        style={[
-          styles.summaryStatTarget,
-          { color: colors.subtext },
+          styles.nutritionStatTarget,
+          {
+            color: colors.subtext,
+          },
         ]}
       >
         / {target}
@@ -799,16 +1241,15 @@ function FilterButton({
   colors,
 }: {
   label: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IconName;
   active: boolean;
   onPress: () => void;
   colors: any;
 }) {
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={onPress}
-      activeOpacity={0.8}
-      style={[
+      style={({ pressed }) => [
         styles.filterButton,
         {
           backgroundColor: active
@@ -817,6 +1258,7 @@ function FilterButton({
           borderColor: active
             ? colors.primary
             : colors.border,
+          opacity: pressed ? 0.7 : 1,
         },
       ]}
     >
@@ -824,7 +1266,9 @@ function FilterButton({
         name={icon}
         size={15}
         color={
-          active ? "#05070B" : colors.subtext
+          active
+            ? "#111111"
+            : colors.subtext
         }
       />
 
@@ -833,27 +1277,29 @@ function FilterButton({
           styles.filterText,
           {
             color: active
-              ? "#05070B"
+              ? "#111111"
               : colors.text,
           },
         ]}
       >
         {label}
       </Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
 function FoodCard({
   food,
   onAdd,
-  mealType,
+  adding,
   colors,
+  isDark,
 }: {
   food: Food;
   onAdd: () => void;
-  mealType: MealType;
+  adding: boolean;
   colors: any;
+  isDark: boolean;
 }) {
   return (
     <View
@@ -865,11 +1311,15 @@ function FoodCard({
         },
       ]}
     >
-      <View style={styles.foodHeader}>
+      <View style={styles.foodCardTop}>
         <View
           style={[
-            styles.foodIcon,
-            { backgroundColor: colors.background },
+            styles.foodMainIcon,
+            {
+              backgroundColor: isDark
+                ? "#20280E"
+                : "#F1F8D2",
+            },
           ]}
         >
           <Ionicons
@@ -881,19 +1331,32 @@ function FoodCard({
 
         <View
           style={[
-            styles.badge,
+            styles.cuisineBadge,
             {
               backgroundColor:
                 food.cuisine === "local"
-                  ? "rgba(215,245,44,0.12)"
+                  ? isDark
+                    ? "#20280E"
+                    : "#F1F8D2"
                   : colors.background,
             },
           ]}
         >
-          <Text
+          <Ionicons
+            name={
+              food.cuisine === "local"
+                ? "location-outline"
+                : "globe-outline"
+            }
+            size={11}
+            color={colors.primary}
+          />
+<Text
             style={[
-              styles.badgeText,
-              { color: colors.primary },
+              styles.cuisineBadgeText,
+              {
+                color: colors.primary,
+              },
             ]}
           >
             {food.cuisine === "local"
@@ -905,8 +1368,10 @@ function FoodCard({
 
       <Text
         style={[
-          styles.foodName,
-          { color: colors.text },
+          styles.foodCardName,
+          {
+            color: colors.text,
+          },
         ]}
         numberOfLines={2}
       >
@@ -916,8 +1381,10 @@ function FoodCard({
       {food.nameAmharic && (
         <Text
           style={[
-            styles.amharic,
-            { color: colors.subtext },
+            styles.foodAmharic,
+            {
+              color: colors.subtext,
+            },
           ]}
           numberOfLines={1}
         >
@@ -925,11 +1392,13 @@ function FoodCard({
         </Text>
       )}
 
-      <View style={styles.calorieRow}>
+      <View style={styles.foodCaloriesRow}>
         <Text
           style={[
-            styles.calories,
-            { color: colors.primary },
+            styles.foodCalories,
+            {
+              color: colors.primary,
+            },
           ]}
         >
           {food.calories}
@@ -937,17 +1406,22 @@ function FoodCard({
 
         <Text
           style={[
-            styles.kcal,
-            { color: colors.primary },
+            styles.foodCaloriesUnit,
+            {
+              color: colors.primary,
+            },
           ]}
         >
           kcal
         </Text>
       </View>
-<Text
+
+      <Text
         style={[
-          styles.serving,
-          { color: colors.subtext },
+          styles.servingText,
+          {
+            color: colors.subtext,
+          },
         ]}
       >
         Per {food.servingSize}
@@ -956,75 +1430,101 @@ function FoodCard({
 
       <View
         style={[
-          styles.macroRow,
-          { borderTopColor: colors.border },
+          styles.foodMacros,
+          {
+            borderTopColor: colors.border,
+          },
         ]}
       >
-        <Macro
+        <FoodMacro
           label="Protein"
-          value={food.protein}
+          value={`${Math.round(food.protein)}g`}
           colors={colors}
         />
 
-        <Macro
+        <FoodMacro
           label="Carbs"
-          value={food.carbohydrates}
+          value={`${Math.round(
+            food.carbohydrates
+          )}g`}
           colors={colors}
         />
 
-        <Macro
+        <FoodMacro
           label="Fat"
-          value={food.fat}
+          value={`${Math.round(food.fat)}g`}
           colors={colors}
         />
       </View>
 
-      <TouchableOpacity
+      <Pressable
         onPress={onAdd}
-        activeOpacity={0.8}
-        style={[
+        disabled={adding}
+        style={({ pressed }) => [
           styles.addButton,
-          { backgroundColor: colors.primary },
+          {
+            backgroundColor:
+              colors.primary,
+            opacity:
+              adding || pressed ? 0.65 : 1,
+          },
         ]}
       >
-        <Ionicons
-          name="add"
-          size={17}
-          color="#05070B"
-        />
+        {adding ? (
+          <ActivityIndicator
+            size="small"
+            color="#111111"
+          />
+        ) : (
+          <>
+            <Ionicons
+              name="add"
+              size={18}
+              color="#111111"
+            />
 
-        <Text style={styles.addButtonText}>
-          Add to {mealType}
-        </Text>
-      </TouchableOpacity>
+            <Text style={styles.addButtonText}>
+              Add to {food.suitableMeals.includes(
+                "breakfast"
+              )
+                ? "meal"
+                : "meal"}
+            </Text>
+          </>
+        )}
+      </Pressable>
     </View>
   );
 }
 
-function Macro({
+function FoodMacro({
   label,
   value,
   colors,
 }: {
   label: string;
-  value: number;
+  value: string;
   colors: any;
 }) {
   return (
-    <View style={styles.macro}>
+    <View style={styles.foodMacro}>
       <Text
         style={[
-          styles.macroValue,
-          { color: colors.text },
+          styles.foodMacroValue,
+          {
+            color: colors.text,
+          },
         ]}
       >
-        {Math.round(value)}g
+        {value}
       </Text>
 
       <Text
         style={[
-          styles.macroLabel,
-          { color: colors.subtext },
+          styles.foodMacroLabel,
+          {
+            color: colors.subtext,
+          },
         ]}
       >
         {label}
@@ -1034,182 +1534,288 @@ function Macro({
 }
 
 const styles = StyleSheet.create({
-  summaryCard: {
-    borderWidth: 1,
-    borderRadius: 24,
-    padding: 22,
-    marginBottom: 30,
+  pageContent: {
+    width: "100%",
+    alignSelf: "center",
   },
 
-  summaryTop: {
+  heroCard: {
+    borderWidth: 1,
+    borderRadius: 22,
+    padding: 18,
+    marginBottom: 25,
+  },
+
+  heroTop: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
 
-  summaryEyebrow: {
-    fontSize: 10,
+  heroHeading: {
+    flex: 1,
+  },
+
+  eyebrowRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+
+  eyebrowDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginRight: 7,
+  },
+
+  eyebrow: {
+    fontSize: 9,
     fontWeight: "900",
-    letterSpacing: 1.5,
+    letterSpacing: 1.3,
   },
 
-  summaryTitle: {
-    fontSize: 32,
+  heroCalories: {
     fontWeight: "900",
-    marginTop: 5,
+    letterSpacing: -1,
+  },
+heroCaloriesUnit: {
+    fontSize: 13,
+    fontWeight: "700",
   },
 
-  summarySubtitle: {
-    fontSize: 12,
-    marginTop: 3,
+  heroSubtitle: {
+    fontSize: 11,
+    marginTop: 2,
   },
 
-  summaryIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: 18,
+  heroIcon: {
+    width: 55,
+    height: 55,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
+    marginLeft: 15,
+  },
+
+  progressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 21,
   },
 
   progressTrack: {
-    height: 7,
-    borderRadius: 10,
+    flex: 1,
+    height: 9,
+    borderRadius: 6,
     overflow: "hidden",
-    marginTop: 21,
   },
 
   progressFill: {
     height: "100%",
-    borderRadius: 10,
+    borderRadius: 6,
   },
 
-  summaryStats: {
-    flexDirection: "row",
-    marginTop: 21,
-    gap: 10,
-  },
-
-  summaryStat: {
-    flex: 1,
-  },
-
-  summaryStatValue: {
-    fontSize: 15,
+  progressPercent: {
+    width: 43,
+    textAlign: "right",
+    fontSize: 10,
     fontWeight: "900",
   },
 
-  summaryStatLabel: {
-    fontSize: 10,
-    marginTop: 3,
+  remainingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 16,
   },
 
-  summaryStatTarget: {
-    fontSize: 9,
+  remainingLabel: {
+    fontSize: 8,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
+
+  remainingValue: {
+    fontSize: 16,
+    fontWeight: "900",
     marginTop: 2,
+  },
+
+  statusPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 10,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+  },
+
+  statusText: {
+    fontSize: 9,
+    fontWeight: "900",
+    marginLeft: 5,
+  },
+
+  macroSummary: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderTopWidth: 1,
+    marginTop: 17,
+    paddingTop: 15,
+  },
+
+  nutritionStat: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+
+  nutritionIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  nutritionStatInfo: {
+    marginLeft: 7,
+  },
+
+  nutritionStatValue: {
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  nutritionStatLabel: {
+    fontSize: 8,
+    marginTop: 2,
+  },
+
+  nutritionStatTarget: {
+    fontSize: 8,
+    marginLeft: 3,
   },
 
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 14,
+    marginBottom: 12,
+    marginTop: 2,
   },
 
-  sectionHeading: {
+  sectionText: {
     flex: 1,
-    paddingRight: 12,
+    paddingRight: 10,
   },
 
   sectionTitle: {
     fontSize: 19,
     fontWeight: "900",
+    letterSpacing: -0.3,
   },
 
   sectionSubtitle: {
-    fontSize: 11,
-    marginTop: 4,
-    lineHeight: 17,
+    fontSize: 10,
+    lineHeight: 16,
+    marginTop: 3,
   },
 
-  mealCount: {
-    width: 39,
-    height: 39,
-    borderRadius: 13,
+  countBadge: {
+    minWidth: 39,
+    height: 35,
+    borderRadius: 11,
+    borderWidth: 1,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 9,
   },
 
-  mealCountText: {
-    fontSize: 14,
+  countBadgeText: {
+    fontSize: 11,
     fontWeight: "900",
+    marginLeft: 5,
   },
 
   mealTypeScroll: {
-    gap: 10,
-    paddingBottom: 18,
+    paddingBottom: 4,
+    paddingRight: 12,
   },
 
   mealTypeButton: {
-    minWidth: 145,
+    minWidth: 132,
+    height: 62,
     borderWidth: 1,
-    borderRadius: 17,
-    padding: 12,
+    borderRadius: 15,
+    paddingHorizontal: 10,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    marginRight: 9,
   },
 
   mealTypeIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
+    marginRight: 9,
   },
 
   mealTypeLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "900",
   },
 
   mealTypeCount: {
-    fontSize: 9,
+    fontSize: 8,
     marginTop: 3,
   },
 
   mealSections: {
-    gap: 12,
-    marginBottom: 32,
+    marginTop: 13,
+    marginBottom: 23,
   },
 
   mealSection: {
-    borderRadius: 19,
-  },
-
-  activeMealSection: {
-    transform: [{ scale: 1 }],
+    borderWidth: 1,
+    borderColor: "transparent",
+    borderRadius: 18,
+    padding: 12,
+    marginBottom: 11,
   },
 
   mealSectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 9,
+  },
+
+  mealSectionHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+
+  mealSectionIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  mealSectionInfo: {
+    marginLeft: 10,
+    flex: 1,
   },
 
   mealSectionTitleRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-  },
-mealSectionIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
   },
 
   mealSectionTitle: {
@@ -1217,306 +1823,326 @@ mealSectionIcon: {
     fontWeight: "900",
   },
 
+  activeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginLeft: 7,
+  },
+
   mealSectionSubtitle: {
     fontSize: 9,
     marginTop: 3,
   },
 
-  mealSectionRight: {
-    flexDirection: "row",
-    alignItems: "baseline",
+  mealCaloriesBlock: {
+    alignItems: "flex-end",
   },
 
   mealCalories: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "900",
   },
-
-  mealCaloriesUnit: {
-    fontSize: 9,
-    marginLeft: 3,
+mealCaloriesUnit: {
+    fontSize: 8,
+    marginTop: 1,
   },
 
-  mealItems: {
+  loggedFoods: {
     borderWidth: 1,
-    borderRadius: 17,
+    borderRadius: 13,
+    marginTop: 11,
     overflow: "hidden",
   },
 
-  mealItem: {
-    minHeight: 68,
-    paddingHorizontal: 13,
-    paddingVertical: 10,
+  loggedFood: {
+    minHeight: 61,
     flexDirection: "row",
     alignItems: "center",
+    paddingHorizontal: 9,
+    paddingVertical: 8,
   },
 
-  foodMiniIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+  foodIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  mealItemInfo: {
+  loggedFoodInfo: {
     flex: 1,
-    marginLeft: 11,
-    marginRight: 9,
+    minWidth: 0,
+    marginLeft: 9,
   },
 
-  mealItemName: {
-    fontSize: 12,
+  loggedFoodName: {
+    fontSize: 11,
     fontWeight: "800",
   },
 
-  mealItemMacros: {
-    fontSize: 9,
-    marginTop: 4,
+  loggedFoodMeta: {
+    fontSize: 8,
+    marginTop: 3,
   },
 
-  removeButton: {
-    width: 35,
-    height: 35,
-    borderRadius: 11,
+  deleteButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
+    marginLeft: 8,
   },
 
   emptyMeal: {
     minHeight: 69,
     borderWidth: 1,
-    borderRadius: 17,
-    paddingHorizontal: 13,
+    borderRadius: 14,
     flexDirection: "row",
     alignItems: "center",
+    paddingHorizontal: 10,
+    marginTop: 11,
   },
 
   emptyMealIcon: {
-    width: 40,
-    height: 40,
+    width: 39,
+    height: 39,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  emptyMealText: {
+  emptyMealInfo: {
     flex: 1,
-    marginLeft: 11,
+    marginLeft: 10,
   },
 
   emptyMealTitle: {
-    fontSize: 12,
-    fontWeight: "900",
-  },
-
-  emptyMealSubtitle: {
-    fontSize: 9,
-    marginTop: 3,
-  },
-
-  databaseCount: {
-    height: 35,
-    paddingHorizontal: 11,
-    borderRadius: 11,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-
-  databaseCountText: {
     fontSize: 11,
     fontWeight: "900",
   },
 
-  searchContainer: {
-    height: 55,
-    borderRadius: 17,
-    borderWidth: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
+  emptyMealSubtitle: {
+    fontSize: 8,
+    lineHeight: 13,
+    marginTop: 3,
   },
 
-  searchInput: {
-    flex: 1,
-    marginLeft: 11,
-    fontSize: 13,
-  },
-
-  filterScroll: {
-    gap: 8,
-    paddingVertical: 13,
-  },
-
-  filterButton: {
-    height: 38,
-    paddingHorizontal: 13,
+  databaseBadge: {
+    minWidth: 48,
+    height: 35,
     borderRadius: 11,
     borderWidth: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    justifyContent: "center",
+    paddingHorizontal: 9,
+  },
+
+  databaseBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    marginLeft: 5,
+  },
+
+  searchBox: {
+    minHeight: 50,
+    borderWidth: 1,
+    borderRadius: 15,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 13,
+    marginBottom: 10,
+  },
+
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 12,
+    marginLeft: 9,
+    paddingVertical: 9,
+  },
+
+  filterScroll: {
+    paddingBottom: 3,
+    paddingRight: 12,
+  },
+
+  filterButton: {
+    height: 38,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 8,
   },
 
   filterText: {
     fontSize: 10,
-    fontWeight: "900",
+    fontWeight: "800",
+    marginLeft: 6,
   },
 
-  resultHeader: {
+  resultsHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 6,
-    marginBottom: 13,
+    marginTop: 21,
+    marginBottom: 11,
   },
 
-  resultTitle: {
-    fontSize: 15,
+  resultsTitle: {
+    fontSize: 16,
     fontWeight: "900",
   },
 
-  resultSubtitle: {
+  resultsSubtitle: {
     fontSize: 9,
     marginTop: 3,
   },
 
-  resultBadge: {
-    minWidth: 34,
-    height: 30,
-    paddingHorizontal: 9,
+  resultsBadge: {
+    width: 31,
+    height: 31,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  resultBadgeText: {
-    color: "#05070B",
-    fontSize: 11,
+  resultsBadgeText: {
+    color: "#111111",
+    fontSize: 10,
     fontWeight: "900",
   },
 
-  foodRow: {
-    gap: 13,
+  foodCardsRow: {
     paddingBottom: 8,
+    paddingRight: 12,
   },
 
   foodCard: {
-    width: 255,
-    minHeight: 300,
-    padding: 17,
-    borderRadius: 20,
+    width: 245,
     borderWidth: 1,
+    borderRadius: 18,
+    padding: 14,
+    marginRight: 11,
   },
 
-  foodHeader: {
+  foodCardTop: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
 
-  foodIcon: {
-    width: 47,
-    height: 47,
-    borderRadius: 14,
+  foodMainIcon: {
+    width: 43,
+    height: 43,
+    borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+  cuisineBadge: {
+    minHeight: 24,
     borderRadius: 8,
+    paddingHorizontal: 7,
+    flexDirection: "row",
+    alignItems: "center",
   },
 
-  badgeText: {
-    fontSize: 8,
+  cuisineBadgeText: {
+    fontSize: 7,
     fontWeight: "900",
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
+    marginLeft: 3,
   },
 
-  foodName: {
-    fontSize: 16,
+  foodCardName: {
+    fontSize: 15,
+    lineHeight: 19,
     fontWeight: "900",
-    marginTop: 16,
-    lineHeight: 20,
+    marginTop: 13,
   },
 
-  amharic: {
-    fontSize: 10,
-    marginTop: 4,
+  foodAmharic: {
+    fontSize: 9,
+    marginTop: 3,
   },
 
-  calorieRow: {
+  foodCaloriesRow: {
     flexDirection: "row",
     alignItems: "baseline",
-    marginTop: 16,
+    marginTop: 13,
   },
 
-  calories: {
-    fontSize: 25,
+  foodCalories: {
+    fontSize: 24,
     fontWeight: "900",
   },
 
-  kcal: {
-    fontSize: 10,
-    fontWeight: "900",
+  foodCaloriesUnit: {
+    fontSize: 9,
+    fontWeight: "800",
     marginLeft: 4,
   },
 
-  serving: {
-    fontSize: 9,
-    marginTop: 2,
+  servingText: {
+    fontSize: 8,
+    marginTop: 1,
   },
-macroRow: {
+
+  foodMacros: {
     flexDirection: "row",
-    gap: 10,
-    marginTop: 17,
-    paddingTop: 13,
+    justifyContent: "space-between",
     borderTopWidth: 1,
+    marginTop: 13,
+    paddingTop: 11,
+  },
+foodMacro: {
+    alignItems: "center",
+    minWidth: 55,
   },
 
-  macro: {
-    flex: 1,
-  },
-
-  macroValue: {
-    fontSize: 11,
+  foodMacroValue: {
+    fontSize: 10,
     fontWeight: "900",
   },
 
-  macroLabel: {
-    fontSize: 8,
+  foodMacroLabel: {
+    fontSize: 7,
     marginTop: 3,
   },
 
   addButton: {
-    height: 40,
-    marginTop: 17,
-    borderRadius: 11,
+    minHeight: 41,
+    borderRadius: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 5,
+    marginTop: 14,
   },
 
   addButtonText: {
-    color: "#05070B",
+    color: "#111111",
     fontSize: 10,
     fontWeight: "900",
+    marginLeft: 5,
   },
 
-  empty: {
-    minHeight: 190,
+  emptySearch: {
+    minHeight: 220,
     borderWidth: 1,
-    borderRadius: 20,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    padding: 25,
+    paddingHorizontal: 25,
   },
 
-  emptyIcon: {
+  emptySearchIcon: {
     width: 58,
     height: 58,
     borderRadius: 18,
@@ -1524,15 +2150,31 @@ macroRow: {
     justifyContent: "center",
   },
 
-  emptyTitle: {
-    fontSize: 15,
+  emptySearchTitle: {
+    fontSize: 16,
     fontWeight: "900",
-    marginTop: 12,
+    marginTop: 13,
   },
 
-  emptyText: {
+  emptySearchText: {
     fontSize: 10,
-    marginTop: 5,
+    lineHeight: 16,
     textAlign: "center",
+    marginTop: 5,
+  },
+
+  clearButton: {
+    minHeight: 39,
+    borderRadius: 11,
+    paddingHorizontal: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 15,
+  },
+
+  clearButtonText: {
+    color: "#111111",
+    fontSize: 10,
+    fontWeight: "900",
   },
 });
