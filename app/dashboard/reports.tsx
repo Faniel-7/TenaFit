@@ -1,13 +1,25 @@
 import React from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import DashboardPage, {
-  DashboardSection,
-} from "../../components/dashboard/DashboardPage";
+import { useRouter } from "expo-router";
 import { useAppData } from "../../context/AppDataContext";
 import { useTheme } from "../../context/ThemeContext";
 
+type IconName = keyof typeof Ionicons.glyphMap;
+
 export default function ReportsScreen() {
+  const { width } = useWindowDimensions();
+  const router = useRouter();
+  const { colors, isDark } = useTheme();
+
   const {
     data,
     goals,
@@ -21,14 +33,42 @@ export default function ReportsScreen() {
     meals,
   } = useAppData();
 
-  const { colors } = useTheme();
+  const isMobile = width < 700;
 
-  const caloriesRemaining = Math.max(goals.calories - data.calories, 0);
-  const proteinRemaining = Math.max(goals.protein - data.protein, 0);
-  const carbsRemaining = Math.max(goals.carbs - data.carbs, 0);
-  const fatRemaining = Math.max(goals.fat - data.fat, 0);
-  const waterRemaining = Math.max(goals.water - data.water, 0);
-  const stepsRemaining = Math.max(goals.steps - data.steps, 0);
+  const safeOverall = Math.max(
+    0,
+    Math.min(Number(overallProgress) || 0, 100)
+  );
+
+  const caloriesRemaining = Math.max(
+    goals.calories - data.calories,
+    0
+  );
+
+  const proteinRemaining = Math.max(
+    goals.protein - data.protein,
+    0
+  );
+
+  const carbsRemaining = Math.max(
+    goals.carbs - data.carbs,
+    0
+  );
+
+  const fatRemaining = Math.max(
+    goals.fat - data.fat,
+    0
+  );
+
+  const waterRemaining = Math.max(
+    goals.water - data.water,
+    0
+  );
+
+  const stepsRemaining = Math.max(
+    goals.steps - data.steps,
+    0
+  );
 
   const completedGoals = [
     calorieProgress >= 1,
@@ -40,26 +80,29 @@ export default function ReportsScreen() {
   ].filter(Boolean).length;
 
   const getStatus = () => {
-    if (overallProgress >= 80) {
+    if (safeOverall >= 80) {
       return {
-        title: "Excellent progress",
-        text: "You're doing a great job staying consistent with today's targets.",
-        icon: "checkmark-circle-outline" as const,
+        title: "Strong day so far",
+        text:
+          "You're staying consistent across your nutrition and activity targets.",
+        icon: "checkmark-circle-outline" as IconName,
       };
     }
 
-    if (overallProgress >= 50) {
+    if (safeOverall >= 50) {
       return {
-        title: "Good progress",
-        text: "You're on your way. Keep tracking your meals, water, and activity.",
-        icon: "trending-up-outline" as const,
+        title: "You're making progress",
+        text:
+          "Keep tracking your meals, hydration, and movement to build a stronger day.",
+        icon: "trending-up-outline" as IconName,
       };
     }
 
     return {
-      title: "Keep building your day",
-      text: "There is still plenty of time to work toward your nutrition and activity goals.",
-      icon: "analytics-outline" as const,
+      title: "Build your day",
+      text:
+        "There is still time to work toward your nutrition and activity targets.",
+      icon: "analytics-outline" as IconName,
     };
   };
 
@@ -69,503 +112,802 @@ export default function ReportsScreen() {
     icon,
     title,
     current,
-    goal,
+    target,
     remaining,
     unit,
     progress,
+    accent,
   }: {
-    icon: keyof typeof Ionicons.glyphMap;
+    icon: IconName;
     title: string;
     current: string;
-    goal: string;
+    target: string;
     remaining: string;
     unit: string;
     progress: number;
-  }) => (
-    <View
-      style={[
-        styles.metricCard,
-        {
-          backgroundColor: colors.card,
-          borderColor: colors.border,
-        },
-      ]}
-    >
-      <View style={styles.metricTop}>
-        <View
-          style={[
-            styles.metricIcon,
-            { backgroundColor: `${colors.primary}18` },
-          ]}
-        >
-          <Ionicons name={icon} size={20} color={colors.primary} />
+    accent?: string;
+  }) => {
+    const safeProgress = Math.max(
+      0,
+      Math.min(Number(progress) || 0, 1)
+    );
+
+    const metricAccent = accent || colors.primary;
+
+    return (
+      <View style={styles.metricCard}>
+        <View style={styles.metricTop}>
+          <View
+            style={[
+              styles.metricIcon,
+              {
+                backgroundColor:
+                  metricAccent + "18",
+              },
+            ]}
+          >
+            <Ionicons
+              name={icon}
+              size={20}
+              color={metricAccent}
+            />
+          </View>
+
+          <View style={styles.metricHeaderText}>
+            <Text style={styles.metricTitle}>
+              {title}
+            </Text>
+
+            <Text style={styles.metricRemaining}>
+              {remaining}
+            </Text>
+          </View>
         </View>
 
-        <View style={styles.metricTextContainer}>
-          <Text style={[styles.metricTitle, { color: colors.text }]}>
-            {title}
+        <View style={styles.metricValues}>
+          <Text style={styles.metricCurrent}>
+            {current}
+            <Text style={styles.metricUnit}>
+              {" "}
+              {unit}
+            </Text>
           </Text>
-          <Text style={[styles.metricRemaining, { color: colors.subtext }]}>
-            {remaining}
+
+          <Text style={styles.metricTarget}>
+            / {target} {unit}
           </Text>
         </View>
-      </View>
+<View style={styles.progressTrack}>
+          {safeProgress > 0 && (
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${safeProgress * 100}%`,
+                  backgroundColor:
+                    metricAccent,
+                },
+              ]}
+            />
+          )}
+        </View>
 
-      <View style={styles.metricValues}>
-        <Text style={[styles.metricCurrent, { color: colors.text }]}>
-          {current}
-          <Text style={[styles.metricUnit, { color: colors.subtext }]}>
-            {" "}
-            {unit}
-          </Text>
+        <Text style={styles.metricPercent}>
+          {Math.round(safeProgress * 100)}%
         </Text>
-
-        <Text style={[styles.metricGoal, { color: colors.subtext }]}>
-          / {goal} {unit}
-        </Text>
       </View>
-
-      <View
-        style={[
-          styles.progressTrack,
-          { backgroundColor: colors.border },
-        ]}
-      >
-        <View
-          style={[
-            styles.progressFill,
-            {
-              width: `${Math.min(progress * 100, 100)}%`,
-              backgroundColor: colors.primary,
-            },
-          ]}
-        />
-      </View>
-    </View>
-  );
+    );
+  };
 
   return (
-    <DashboardPage
-      title="Reports"
-subtitle="Review your nutrition and activity for today."
-      icon="document-text-outline"
-    >
+    <View style={styles.screen}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            maxWidth: 1120,
+            paddingHorizontal: isMobile
+              ? 18
+              : 28,
+          },
+        ]}
       >
-        <DashboardSection
-          title="Daily overview"
-          subtitle="Your progress across today's targets."
-        >
-          <View
-            style={[
-              styles.overviewCard,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.progressCircle,
-                { borderColor: colors.primary },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.progressPercentage,
-                  { color: colors.text },
-                ]}
-              >
-                {overallProgress}%
-              </Text>
-
-              <Text
-                style={[
-                  styles.progressComplete,
-                  { color: colors.subtext },
-                ]}
-              >
-                complete
-              </Text>
-            </View>
-
-            <View style={styles.overviewInfo}>
-              <Text
-                style={[
-                  styles.overviewTitle,
-                  { color: colors.text },
-                ]}
-              >
-                Today's performance
-              </Text>
-
-              <Text
-                style={[
-                  styles.overviewDescription,
-                  { color: colors.subtext },
-                ]}
-              >
-                {completedGoals} of 6 daily targets reached
-              </Text>
-
-              <View
-                style={[
-                  styles.overviewTrack,
-                  { backgroundColor: colors.border },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.overviewFill,
-                    {
-                      width: `${overallProgress}%`,
-                      backgroundColor: colors.primary,
-                    },
-                  ]}
+        <View style={styles.header}>
+          <View style={styles.headerText}>
+            <View style={styles.eyebrowRow}>
+              <View style={styles.eyebrowIcon}>
+                <Ionicons
+                  name="document-text"
+                  size={15}
+                  color={colors.primary}
                 />
               </View>
-            </View>
-          </View>
-        </DashboardSection>
 
-        <DashboardSection
-          title="Nutrition"
-          subtitle="Calories and macronutrients tracked today."
-        >
-          <View style={styles.grid}>
-            <MetricCard
-              icon="flame-outline"
-              title="Calories"
-              current={Math.round(data.calories).toString()}
-              goal={Math.round(goals.calories).toString()}
-              remaining={`${Math.round(caloriesRemaining)} kcal left`}
-              unit="kcal"
-              progress={calorieProgress}
-            />
-
-            <MetricCard
-              icon="fitness-outline"
-              title="Protein"
-              current={Math.round(data.protein).toString()}
-              goal={Math.round(goals.protein).toString()}
-              remaining={`${Math.round(proteinRemaining)} g left`}
-              unit="g"
-              progress={proteinProgress}
-            />
-
-            <MetricCard
-              icon="nutrition-outline"
-              title="Carbs"
-              current={Math.round(data.carbs).toString()}
-              goal={Math.round(goals.carbs).toString()}
-              remaining={`${Math.round(carbsRemaining)} g left`}
-              unit="g"
-              progress={carbsProgress}
-            />
-
-            <MetricCard
-              icon="water-outline"
-              title="Fat"
-              current={Math.round(data.fat).toString()}
-              goal={Math.round(goals.fat).toString()}
-              remaining={`${Math.round(fatRemaining)} g left`}
-              unit="g"
-              progress={fatProgress}
-            />
-          </View>
-        </DashboardSection>
-
-        <DashboardSection
-          title="Hydration & activity"
-          subtitle="Your movement and hydration progress."
-        >
-          <View style={styles.grid}>
-            <MetricCard
-              icon="water-outline"
-              title="Water"
-              current={data.water.toFixed(2)}
-              goal={goals.water.toFixed(2)}
-              remaining={`${waterRemaining.toFixed(2)} L left`}
-              unit="L"
-              progress={waterProgress}
-            />
-
-            <MetricCard
-              icon="walk-outline"
-              title="Steps"
-              current={Math.round(data.steps).toLocaleString()}
-              goal={Math.round(goals.steps).toLocaleString()}
-              remaining={`${Math.round(stepsRemaining).toLocaleString()} left`}
-              unit="steps"
-              progress={stepsProgress}
-            />
-          </View>
-        </DashboardSection>
-
-        <DashboardSection
-          title="Today's meals"
-          subtitle="Foods recorded in your daily tracker."
-        >
-          <View
-            style={[
-              styles.mealSummary,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.mealIcon,
-                { backgroundColor: `${colors.primary}18` },
-              ]}
-            >
-              <Ionicons
-                name="restaurant-outline"
-                size={22}
-                color={colors.primary}
-              />
-            </View>
-
-            <View style={styles.mealSummaryText}>
-              <Text
-                style={[
-                  styles.mealSummaryTitle,
-                  { color: colors.text },
-                ]}
-              >
-                {meals.length}{" "}
-                {meals.length === 1 ? "meal" : "meals"} recorded
-              </Text>
-
-              <Text
-                style={[
-                  styles.mealSummaryDescription,
-                  { color: colors.subtext },
-                ]}
-              >
-                {Math.round(data.calories)} kcal recorded today
+              <Text style={styles.eyebrow}>
+                DAILY REPORT
               </Text>
             </View>
+
+            <Text style={styles.title}>
+              Your day at a glance.
+            </Text>
+
+            <Text style={styles.subtitle}>
+              See how your nutrition, hydration,
+              and movement are coming together.
+            </Text>
           </View>
 
-          {meals.length > 0 ? (
+          <View style={styles.headerIcon}>
+            <Ionicons
+              name="analytics-outline"
+              size={27}
+              color={colors.primary}
+            />
+          </View>
+        </View>
+
+        <View style={styles.heroCard}>
+          <View style={styles.heroTop}>
+            <View>
+              <Text style={styles.heroEyebrow}>
+                OVERALL PROGRESS
+              </Text>
+
+              <Text style={styles.heroTitle}>
+                {status.title}
+              </Text>
+            </View>
+
             <View
               style={[
-                styles.mealList,
+                styles.heroPercentage,
                 {
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
+                  backgroundColor:
+                    colors.primary + "18",
                 },
               ]}
             >
-              {meals.map((meal, index) => (
+              <Text
+                style={[
+                  styles.heroPercentageText,
+                  { color: colors.primary },
+                ]}
+              >
+                {safeOverall}%
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.heroProgressTrack}>
+            {safeOverall > 0 && (
+              <View
+                style={[
+                  styles.heroProgressFill,
+                  {
+                    width: `${safeOverall}%`,
+                    backgroundColor:
+                      colors.primary,
+                  },
+                ]}
+              />
+            )}
+          </View>
+
+          <View style={styles.heroBottom}>
+            <View style={styles.heroBottomItem}>
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={17}
+                color={colors.success}
+              />
+
+              <Text style={styles.heroBottomText}>
+                {completedGoals} of 6 targets reached
+              </Text>
+            </View>
+
+            <Text style={styles.heroDescription}>
+              {status.text}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text style={styles.sectionTitle}>
+              Nutrition
+            </Text>
+
+            <Text style={styles.sectionSubtitle}>
+              Your calories and macronutrients today.
+            </Text>
+          </View>
+
+          <View style={styles.sectionIcon}>
+            <Ionicons
+              name="nutrition-outline"
+              size={18}
+              color={colors.primary}
+            />
+          </View>
+        </View>
+<View
+          style={[
+            styles.metricGrid,
+            isMobile &&
+              styles.metricGridMobile,
+          ]}
+        >
+          <MetricCard
+            icon="flame-outline"
+            title="Calories"
+            current={Math.round(
+              data.calories
+            ).toLocaleString()}
+            target={Math.round(
+              goals.calories
+            ).toLocaleString()}
+            remaining={ `${Math.round(
+              caloriesRemaining
+            )} kcal left` }
+            unit="kcal"
+            progress={calorieProgress}
+            accent="#FF8A3D"
+          />
+
+          <MetricCard
+            icon="fitness-outline"
+            title="Protein"
+            current={Math.round(
+              data.protein
+            ).toString()}
+            target={Math.round(
+              goals.protein
+            ).toString()}
+            remaining={ `${Math.round(
+              proteinRemaining
+            )} g left` }
+            unit="g"
+            progress={proteinProgress}
+            accent="#8B7CFF"
+          />
+
+          <MetricCard
+            icon="nutrition-outline"
+            title="Carbs"
+            current={Math.round(
+              data.carbs
+            ).toString()}
+            target={Math.round(
+              goals.carbs
+            ).toString()}
+            remaining={ `${Math.round(
+              carbsRemaining
+            )} g left` }
+            unit="g"
+            progress={carbsProgress}
+            accent="#F4C430"
+          />
+
+          <MetricCard
+            icon="water-outline"
+            title="Fat"
+            current={Math.round(
+              data.fat
+            ).toString()}
+            target={Math.round(
+              goals.fat
+            ).toString()}
+            remaining={ `${Math.round(
+              fatRemaining
+            )} g left` }
+            unit="g"
+            progress={fatProgress}
+            accent="#4DB8FF"
+          />
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text style={styles.sectionTitle}>
+              Activity & hydration
+            </Text>
+
+            <Text style={styles.sectionSubtitle}>
+              Your movement and water intake today.
+            </Text>
+          </View>
+
+          <View style={styles.sectionIcon}>
+            <Ionicons
+              name="walk-outline"
+              size={18}
+              color={colors.primary}
+            />
+          </View>
+        </View>
+
+        <View
+          style={[
+            styles.metricGrid,
+            isMobile &&
+              styles.metricGridMobile,
+          ]}
+        >
+          <MetricCard
+            icon="water"
+            title="Water"
+            current={data.water.toFixed(2)}
+            target={goals.water.toFixed(2)}
+            remaining={ `${waterRemaining.toFixed(
+              2
+            )} L left` }
+            unit="L"
+            progress={waterProgress}
+            accent="#4DB8FF"
+          />
+
+          <MetricCard
+            icon="footsteps-outline"
+            title="Steps"
+            current={Math.round(
+              data.steps
+            ).toLocaleString()}
+            target={Math.round(
+              goals.steps
+            ).toLocaleString()}
+            remaining={ `${Math.round(
+              stepsRemaining
+            ).toLocaleString()} left` }
+            unit="steps"
+            progress={stepsProgress}
+            accent={colors.primary}
+          />
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text style={styles.sectionTitle}>
+              Meals
+            </Text>
+
+            <Text style={styles.sectionSubtitle}>
+              Everything you've logged today.
+            </Text>
+          </View>
+
+          <Pressable
+            onPress={() =>
+router.push("/dashboard/meals")
+            }
+            style={styles.sectionAction}
+          >
+            <Text
+              style={[
+                styles.sectionActionText,
+                { color: colors.primary },
+              ]}
+            >
+              View meals
+            </Text>
+
+            <Ionicons
+              name="chevron-forward"
+              size={15}
+              color={colors.primary}
+            />
+          </Pressable>
+        </View>
+
+        <View style={styles.mealSummaryCard}>
+          <View
+            style={[
+              styles.mealSummaryIcon,
+              {
+                backgroundColor:
+                  colors.primary + "18",
+              },
+            ]}
+          >
+            <Ionicons
+              name="restaurant-outline"
+              size={23}
+              color={colors.primary}
+            />
+          </View>
+
+          <View style={styles.mealSummaryText}>
+            <Text style={styles.mealSummaryTitle}>
+              {meals.length}{" "}
+              {meals.length === 1
+                ? "meal"
+                : "meals"}{" "}
+              recorded
+            </Text>
+
+            <Text
+              style={styles.mealSummaryDescription}
+            >
+              {Math.round(data.calories)} kcal
+              recorded today
+            </Text>
+          </View>
+
+          <View style={styles.mealSummaryBadge}>
+            <Ionicons
+              name={
+                meals.length > 0
+                  ? "checkmark"
+                  : "add"
+              }
+              size={16}
+              color={
+                meals.length > 0
+                  ? colors.success
+                  : colors.subtext
+              }
+            />
+          </View>
+        </View>
+
+        {meals.length > 0 ? (
+          <View style={styles.mealsList}>
+            {meals.slice(0, 5).map((meal) => (
+              <View
+                key={meal.id}
+                style={styles.mealRow}
+              >
                 <View
-                  key={meal.id}
                   style={[
-                    styles.mealRow,
-                    index < meals.length - 1 && {
-                      borderBottomWidth: 1,
-                      borderBottomColor: colors.border,
+                    styles.mealRowIcon,
+                    {
+                      backgroundColor:
+                        colors.background,
                     },
                   ]}
                 >
-                  <View style={styles.mealInfo}>
-                    <Text
-                      style={[
-                        styles.mealName,
-                        { color: colors.text },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {meal.food.nameEnglish}
-                    </Text>
+                  <Ionicons
+                    name="restaurant-outline"
+                    size={17}
+                    color={colors.primary}
+                  />
+                </View>
 
-                    <Text
-                      style={[
-                        styles.mealType,
-                        { color: colors.subtext },
-                      ]}
-                    >
-                      {meal.mealType}
-                    </Text>
-                  </View>
+                <View style={styles.mealRowText}>
+                  <Text
+                    style={styles.mealRowTitle}
+                    numberOfLines={1}
+                  >
+                    {meal.food.name}
+                  </Text>
 
                   <Text
-                    style={[
-                      styles.mealCalories,
-                      { color: colors.primary },
-                    ]}
+                    style={
+                      styles.mealRowDescription
+                    }
                   >
-                    {Math.round(meal.calories)} kcal
+                    {meal.mealType} ·{" "}
+                    {Math.round(
+                      meal.calories
+                    )}{" "}
+                    kcal
                   </Text>
                 </View>
-              ))}
-            </View>
-          ) : (
+
+                <Text
+                  style={styles.mealRowCalories}
+                >
+                  {Math.round(
+                    meal.calories
+                  )} kcal
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.emptyMeals}>
             <View
               style={[
-                styles.emptyMeals,
+                styles.emptyMealsIcon,
                 {
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
+                  backgroundColor:
+                    colors.background,
                 },
               ]}
             >
               <Ionicons
                 name="restaurant-outline"
-                size={24}
+                size={25}
                 color={colors.subtext}
               />
-
-              <Text
-                style={[
-                  styles.emptyMealsTitle,
-                  { color: colors.text },
-                ]}
-              >
-                No meals recorded yet
-              </Text>
-
-              <Text
-                style={[
-                  styles.emptyMealsText,
-                  { color: colors.subtext },
-                ]}
-              >
-                Add your first meal to start building today's report.
-              </Text>
             </View>
-          )}
-        </DashboardSection>
 
-        <DashboardSection
-          title="Daily status"
-          subtitle="A quick interpretation of your current progress."
-        >
-          <View
-            style={[
-              styles.statusCard,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <View
+            <Text style={styles.emptyMealsTitle}>
+              No meals recorded yet
+            </Text>
+
+            <Text
+              style={styles.emptyMealsText}
+            >
+              Add your first meal to start
+              building today's report.
+            </Text>
+<Pressable
+              onPress={() =>
+                router.push("/dashboard/meals")
+              }
               style={[
-                styles.statusIcon,
-                { backgroundColor: `${colors.primary}18` },
+                styles.emptyMealsButton,
+                {
+                  backgroundColor:
+                    colors.primary,
+                },
               ]}
             >
               <Ionicons
-                name={status.icon}
-                size={24}
-                color={colors.primary}
+                name="add"
+                size={17}
+                color="#111111"
               />
-            </View>
-
-            <View style={styles.statusInfo}>
-              <Text
-                style={[
-                  styles.statusTitle,
-                  { color: colors.text },
-                ]}
-              >
-                {status.title}
-              </Text>
 
               <Text
-                style={[
-                  styles.statusDescription,
-                  { color: colors.subtext },
-                ]}
+                style={styles.emptyMealsButtonText}
               >
-                {status.text}
+                Add meal
               </Text>
-            </View>
+            </Pressable>
           </View>
-        </DashboardSection>
+        )}
+
+        <View style={styles.insightCard}>
+          <View style={styles.insightIcon}>
+            <Ionicons
+              name={status.icon}
+              size={23}
+              color={colors.primary}
+            />
+          </View>
+
+          <View style={styles.insightContent}>
+            <Text style={styles.insightEyebrow}>
+              TODAY'S INSIGHT
+            </Text>
+
+            <Text style={styles.insightTitle}>
+              {status.title}
+            </Text>
+
+            <Text style={styles.insightText}>
+              {status.text}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.bottomSpace} />
       </ScrollView>
-    </DashboardPage>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    paddingBottom: 30,
+  screen: {
+    flex: 1,
+    backgroundColor: "transparent",
   },
 
-  overviewCard: {
-    minHeight: 150,
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 20,
+  scrollContent: {
+    width: "100%",
+    alignSelf: "center",
+    paddingTop:
+      Platform.OS === "web" ? 28 : 20,
+    paddingBottom: 50,
+  },
+
+  header: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    marginBottom: 24,
+  },
+
+  headerText: {
+    flex: 1,
+    paddingRight: 18,
+  },
+
+  eyebrowRow: {
     flexDirection: "row",
     alignItems: "center",
+    marginBottom: 9,
   },
 
-  progressCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 7,
+  eyebrowIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    backgroundColor: "#D7F52C18",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+  },
+
+  eyebrow: {
+    color: "#D7F52C",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+  },
+
+  title: {
+    color: "#FFFFFF",
+    fontSize: 31,
+    fontWeight: "900",
+    letterSpacing: -0.8,
+  },
+
+  subtitle: {
+    color: "#A1A1AA",
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 6,
+    maxWidth: 620,
+  },
+
+  headerIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: "#15161A",
+    borderWidth: 1,
+    borderColor: "#2A2B31",
     alignItems: "center",
     justifyContent: "center",
   },
 
-  progressPercentage: {
-    fontSize: 22,
-    fontWeight: "900",
+  heroCard: {
+    backgroundColor: "#15161A",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "#2A2B31",
+    padding: 22,
+    marginBottom: 29,
   },
 
-  progressComplete: {
+  heroTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  heroEyebrow: {
+    color: "#A1A1AA",
     fontSize: 9,
-    fontWeight: "700",
-    marginTop: 2,
-    textTransform: "uppercase",
+    fontWeight: "900",
+    letterSpacing: 1.2,
   },
 
-  overviewInfo: {
-    flex: 1,
-    marginLeft: 20,
+  heroTitle: {
+    color: "#FFFFFF",
+    fontSize: 21,
+    fontWeight: "900",
+    marginTop: 5,
   },
 
-  overviewTitle: {
+  heroPercentage: {
+    minWidth: 65,
+    height: 48,
+    paddingHorizontal: 12,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  heroPercentageText: {
     fontSize: 16,
     fontWeight: "900",
   },
 
-  overviewDescription: {
+  heroProgressTrack: {
+    height: 9,
+    borderRadius: 10,
+    backgroundColor: "#2A2B31",
+    overflow: "hidden",
+    marginTop: 20,
+  },
+
+  heroProgressFill: {
+    height: "100%",
+    borderRadius: 10,
+  },
+
+  heroBottom: {
+    marginTop: 17,
+  },
+
+  heroBottomItem: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  heroBottomText: {
+    color: "#FFFFFF",
     fontSize: 11,
+    fontWeight: "800",
+    marginLeft: 7,
+  },
+
+  heroDescription: {
+    color: "#A1A1AA",
+    fontSize: 11,
+    lineHeight: 17,
     marginTop: 6,
   },
 
-  overviewTrack: {
-    height: 8,
-    borderRadius: 8,
-    overflow: "hidden",
-    marginTop: 15,
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 13,
   },
 
-  overviewFill: {
-    height: "100%",
-    borderRadius: 8,
+  sectionTitle: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "900",
+    letterSpacing: -0.3,
+  },
+sectionSubtitle: {
+    color: "#A1A1AA",
+    fontSize: 11,
+    marginTop: 3,
   },
 
-  grid: {
-    gap: 12,
+  sectionIcon: {
+    width: 35,
+    height: 35,
+    borderRadius: 11,
+    backgroundColor: "#15161A",
+    borderWidth: 1,
+    borderColor: "#2A2B31",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  sectionAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 7,
+    paddingLeft: 8,
+  },
+
+  sectionActionText: {
+    fontSize: 10,
+    fontWeight: "900",
+    marginRight: 2,
+  },
+
+  metricGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginBottom: 17,
+  },
+
+  metricGridMobile: {
+    flexDirection: "row",
   },
 
   metricCard: {
-    minHeight: 135,
-    borderRadius: 18,
+    width: "48.5%",
+    minHeight: 157,
+    backgroundColor: "#15161A",
     borderWidth: 1,
-    padding: 16,
+    borderColor: "#2A2B31",
+    borderRadius: 18,
+    padding: 15,
+    marginRight: 10,
+    marginBottom: 10,
   },
 
   metricTop: {
@@ -574,180 +916,266 @@ const styles = StyleSheet.create({
   },
 
   metricIcon: {
-    width: 43,
-    height: 43,
+    width: 42,
+    height: 42,
     borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  metricTextContainer: {
+  metricHeaderText: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 10,
   },
 
   metricTitle: {
-    fontSize: 13,
+    color: "#FFFFFF",
+    fontSize: 12,
     fontWeight: "900",
   },
 
   metricRemaining: {
-    fontSize: 10,
+    color: "#A1A1AA",
+    fontSize: 9,
     marginTop: 3,
   },
 
   metricValues: {
     flexDirection: "row",
-    alignItems: "baseline",
+    alignItems: "flex-end",
     marginTop: 15,
   },
 
   metricCurrent: {
+    color: "#FFFFFF",
     fontSize: 20,
     fontWeight: "900",
   },
 
   metricUnit: {
-    fontSize: 10,
+    color: "#A1A1AA",
+    fontSize: 9,
     fontWeight: "700",
   },
 
-  metricGoal: {
-    fontSize: 10,
-    marginLeft: 5,
+  metricTarget: {
+    color: "#A1A1AA",
+    fontSize: 9,
+    marginBottom: 3,
+    marginLeft: 4,
   },
-progressTrack: {
-    height: 7,
-    borderRadius: 7,
+
+  progressTrack: {
+    height: 6,
+    borderRadius: 8,
+    backgroundColor: "#2A2B31",
     overflow: "hidden",
-    marginTop: 12,
+    marginTop: 13,
   },
 
   progressFill: {
     height: "100%",
-    borderRadius: 7,
+    borderRadius: 8,
   },
 
-  mealSummary: {
-    minHeight: 80,
-    borderRadius: 18,
+  metricPercent: {
+    color: "#A1A1AA",
+    fontSize: 9,
+    fontWeight: "800",
+    textAlign: "right",
+    marginTop: 6,
+  },
+
+  mealSummaryCard: {
+    backgroundColor: "#15161A",
     borderWidth: 1,
-    padding: 15,
+    borderColor: "#2A2B31",
+    borderRadius: 18,
+    padding: 16,
     flexDirection: "row",
     alignItems: "center",
+    marginBottom: 9,
   },
 
-  mealIcon: {
+  mealSummaryIcon: {
     width: 48,
     height: 48,
-    borderRadius: 14,
+    borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
   },
 
   mealSummaryText: {
     flex: 1,
-    marginLeft: 13,
+    marginLeft: 12,
   },
 
   mealSummaryTitle: {
+    color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "900",
   },
 
   mealSummaryDescription: {
+    color: "#A1A1AA",
     fontSize: 10,
     marginTop: 4,
   },
 
-  mealList: {
-    marginTop: 10,
-    borderRadius: 18,
+  mealSummaryBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: "#0B0B0D",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  mealsList: {
+    backgroundColor: "#15161A",
     borderWidth: 1,
-    overflow: "hidden",
+    borderColor: "#2A2B31",
+    borderRadius: 18,
+    paddingHorizontal: 15,
   },
 
   mealRow: {
-    minHeight: 60,
-    paddingHorizontal: 15,
+    minHeight: 65,
     flexDirection: "row",
     alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#2A2B31",
   },
 
-  mealInfo: {
+  mealRowIcon: {
+    width: 37,
+    height: 37,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  mealRowText: {
     flex: 1,
-    marginRight: 12,
+    marginLeft: 10,
   },
 
-  mealName: {
-    fontSize: 12,
+  mealRowTitle: {
+    color: "#FFFFFF",
+    fontSize: 11,
     fontWeight: "800",
   },
 
-  mealType: {
+  mealRowDescription: {
+    color: "#A1A1AA",
     fontSize: 9,
-    marginTop: 4,
+    marginTop: 3,
     textTransform: "capitalize",
   },
 
-  mealCalories: {
-    fontSize: 11,
-    fontWeight: "900",
+  mealRowCalories: {
+    color: "#A1A1AA",
+    fontSize: 9,
+    fontWeight: "800",
+    marginLeft: 8,
   },
 
   emptyMeals: {
-    minHeight: 125,
-    borderRadius: 18,
+    backgroundColor: "#15161A",
     borderWidth: 1,
+    borderColor: "#2A2B31",
+    borderRadius: 18,
+    padding: 28,
+    alignItems: "center",
+  },
+
+  emptyMealsIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
-    padding: 20,
-    marginTop: 10,
   },
 
   emptyMealsTitle: {
-    fontSize: 13,
+    color: "#FFFFFF",
+    fontSize: 15,
     fontWeight: "900",
-    marginTop: 9,
+    marginTop: 13,
   },
-
-  emptyMealsText: {
+emptyMealsText: {
+    color: "#A1A1AA",
     fontSize: 10,
+    lineHeight: 16,
     textAlign: "center",
+    maxWidth: 330,
     marginTop: 5,
-    lineHeight: 15,
   },
 
-  statusCard: {
-    minHeight: 100,
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 16,
+  emptyMealsButton: {
+    minHeight: 42,
+    paddingHorizontal: 18,
+    borderRadius: 13,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    marginTop: 16,
   },
 
-  statusIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 15,
+  emptyMealsButtonText: {
+    color: "#111111",
+    fontSize: 11,
+    fontWeight: "900",
+    marginLeft: 5,
+  },
+
+  insightCard: {
+    backgroundColor: "#15161A",
+    borderWidth: 1,
+    borderColor: "#2A2B31",
+    borderRadius: 18,
+    padding: 17,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginTop: 29,
+  },
+
+  insightIcon: {
+    width: 45,
+    height: 45,
+    borderRadius: 14,
+    backgroundColor: "#D7F52C18",
     alignItems: "center",
     justifyContent: "center",
   },
 
-  statusInfo: {
+  insightContent: {
     flex: 1,
-    marginLeft: 14,
+    marginLeft: 12,
   },
 
-  statusTitle: {
-    fontSize: 14,
+  insightEyebrow: {
+    color: "#D7F52C",
+    fontSize: 8,
     fontWeight: "900",
+    letterSpacing: 1,
   },
 
-  statusDescription: {
+  insightTitle: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "900",
+    marginTop: 3,
+  },
+
+  insightText: {
+    color: "#A1A1AA",
     fontSize: 10,
-    lineHeight: 15,
-    marginTop: 5,
+    lineHeight: 16,
+    marginTop: 4,
+  },
+
+  bottomSpace: {
+    height: 30,
   },
 });
