@@ -38,7 +38,7 @@ TenaFit
 
 <Text style={[styles.subtitle,{color:colors.subtext}]}>
 Your AI powered nutrition and fitness
-companion.
+companion!
 </Text>
 
 
@@ -51,8 +51,8 @@ onPress={()=>{
 />
 
 <Pressable onPress={() => router.push("/auth/login")}>
-  <Text style={{ color: "#FFC107", fontWeight: "700", marginTop: 24, fontSize: 16, textAlign: "center" }}>
-    Already have an account? Login
+  <Text style={{ color: "#FFC107", fontWeight: "800", marginTop: 24, fontSize: 16, textAlign: "center" }}>
+    Already have an account? Login.
   </Text>
 </Pressable>
 
