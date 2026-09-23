@@ -1642,7 +1642,7 @@ historyCard: {
   insightIcon: {
     width: 43,
     height: 43,
-    borderRadius: 13,
+    borderRadius: 12,
     backgroundColor: "rgba(17,17,17,0.12)",
     alignItems: "center",
     justifyContent: "center",
@@ -1650,7 +1650,7 @@ historyCard: {
 
   insightContent: {
     flex: 1,
-    marginLeft: 13,
+    marginLeft: 12,
   },
 
   insightLabel: {
