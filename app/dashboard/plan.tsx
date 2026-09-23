@@ -1,7 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,7 +10,6 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-
 import { getUserProfile } from "../../storage/profileStorage";
 import { UserProfile } from "../../types/userProfile";
 import {
@@ -19,12 +17,12 @@ import {
   DailyPlan,
   PlannedMeal,
 } from "../../logic/mealPlanner";
-import { useAppData } from "../../context/AppDataContext";
 import { useTheme } from "../../context/ThemeContext";
 
-type IconName = keyof typeof Ionicons.glyphMap;
-
-const mealIcons: Record<PlannedMeal["meal"], IconName> = {
+const mealIcons: Record<
+  PlannedMeal["meal"],
+  keyof typeof Ionicons.glyphMap
+> = {
   breakfast: "sunny-outline",
   lunch: "restaurant-outline",
   dinner: "moon-outline",
@@ -33,40 +31,27 @@ const mealIcons: Record<PlannedMeal["meal"], IconName> = {
 
 const mealColors: Record<
   PlannedMeal["meal"],
-  {
-    icon: string;
-    background: string;
-  }
+  string
 > = {
-  breakfast: {
-    icon: "#FFD54A",
-    background: "#2A2412",
-  },
-  lunch: {
-    icon: "#D7F52C",
-    background: "#20280E",
-  },
-  dinner: {
-    icon: "#9FA8DA",
-    background: "#171A2B",
-  },
-  snack: {
-    icon: "#67E8F9",
-    background: "#10242A",
-  },
+  breakfast: "#F59E0B",
+  lunch: "#22C55E",
+  dinner: "#8B5CF6",
+  snack: "#38BDF8",
 };
 
 export default function PlanScreen() {
-  const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
-  const { data, goals, meals } = useAppData();
+  const { colors, isDark } = useTheme();
 
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] =
+    useState<UserProfile | null>(null);
   const [plan, setPlan] = useState<DailyPlan | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const isCompact = width < 390;
-  const isDesktop = width >= 900;
+  const contentWidth = Math.min(
+    width > 767 ? 1120 : 620,
+    width - 36
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -86,10 +71,8 @@ export default function PlanScreen() {
 
         setProfile(savedProfile);
         setPlan(createDailyPlan(savedProfile));
-      } catch {
-        if (mounted) {
-          setPlan(null);
-        }
+      } catch (error) {
+        console.error("Failed to create daily plan:", error);
       } finally {
         if (mounted) {
           setLoading(false);
@@ -104,99 +87,12 @@ export default function PlanScreen() {
     };
   }, []);
 
-  const consumedCalories = Math.max(
-    0,
-    Number(data.calories) || 0
-  );
-
-  const targetCalories =
-    Number(goals.calories) ||
-    Number(plan?.targetCalories) ||
-    0;
-
-  const calorieRemaining = Math.max(
-    0,
-    targetCalories - consumedCalories
-  );
-
-  const calorieProgress =
-    targetCalories > 0
-      ? Math.min(
-          consumedCalories / targetCalories,
-          1
-        )
-      : 0;
-
-  const consumedProtein = Math.max(
-    0,
-    Number(data.protein) || 0
-  );
-
-  const targetProtein =
-    Number(goals.protein) ||
-    Number(plan?.targetProtein) ||
-    0;
-
-  const consumedCarbs = Math.max(
-    0,
-    Number(data.carbs) || 0
-  );
-
-  const targetCarbs =
-    Number(goals.carbs) ||
-    Number(plan?.targetCarbohydrates) ||
-    0;
-
-  const consumedFat = Math.max(
-    0,
-    Number(data.fat) || 0
-  );
-
-  const targetFat =
-    Number(goals.fat) ||
-    Number(plan?.targetFat) ||
-    0;
-
-  const loggedMealCount = Array.isArray(meals)
-    ? meals.length
-    : 0;
-
-  const goalText = useMemo(() => {
-    if (!profile) {
-      return "personalized nutrition";
-    }
-
-    switch (profile.goal) {
-      case "lose":
-        return "fat loss";
-      case "gain":
-        return "healthy weight gain";
-      case "maintain":
-      default:
-        return "weight maintenance";
-    }
-  }, [profile]);
-
-  const profileSummary = useMemo(() => {
-    if (!profile) {
-      return "";
-    }
-
-    const activity = profile.activityLevel
-      .charAt(0)
-      .toUpperCase() +
-      profile.activityLevel.slice(1);
-
-    return `${profile.weightKg} kg · ${profile.heightCm} cm · ${activity} activity`;
-  }, [profile]);
-if (loading) {
+  if (loading || !profile || !plan) {
     return (
       <View
         style={[
-          styles.loadingContainer,
-          {
-            backgroundColor: colors.background,
-          },
+          styles.loadingScreen,
+          { backgroundColor: colors.background },
         ]}
       >
         <View
@@ -204,13 +100,13 @@ if (loading) {
             styles.loadingIcon,
             {
               backgroundColor: isDark
-                ? "#20280E"
-                : "#F1F8D2",
+                ? "#22271A"
+                : "#F1F7D9",
             },
           ]}
         >
           <Ionicons
-            name="restaurant-outline"
+            name="nutrition-outline"
             size={30}
             color={colors.primary}
           />
@@ -219,15 +115,13 @@ if (loading) {
         <ActivityIndicator
           size="small"
           color={colors.primary}
-          style={styles.loadingSpinner}
+          style={styles.loadingIndicator}
         />
 
         <Text
           style={[
             styles.loadingTitle,
-            {
-              color: colors.text,
-            },
+            { color: colors.text },
           ]}
         >
           Building your plan
@@ -236,776 +130,461 @@ if (loading) {
         <Text
           style={[
             styles.loadingText,
-            {
-              color: colors.subtext,
-            },
+            { color: colors.subtext },
           ]}
         >
-          Creating recommendations from your
-          profile and nutrition targets.
+          Creating recommendations from your profile.
         </Text>
       </View>
     );
   }
 
-  if (!profile || !plan) {
-    return (
-      <View
-        style={[
-          styles.loadingContainer,
-          {
-            backgroundColor: colors.background,
-          },
-        ]}
-      >
-        <View
-          style={[
-            styles.loadingIcon,
-            {
-              backgroundColor: isDark
-                ? "#20280E"
-                : "#F1F8D2",
-            },
-          ]}
-        >
-          <Ionicons
-            name="alert-circle-outline"
-            size={30}
-            color={colors.warning}
-          />
-        </View>
+  const goalText =
+    profile.goal === "lose"
+      ? "weight loss"
+      : profile.goal === "gain"
+      ? "weight gain"
+      : "maintenance";
 
-        <Text
-          style={[
-            styles.loadingTitle,
-            {
-              color: colors.text,
-            },
-          ]}
-        >
-          Your plan is unavailable
-        </Text>
-
-        <Text
-          style={[
-            styles.loadingText,
-            {
-              color: colors.subtext,
-            },
-          ]}
-        >
-          Complete your profile to generate your
-          personalized nutrition plan.
-        </Text>
-
-        <Pressable
-          style={[
-            styles.primaryButton,
-            {
-              backgroundColor: colors.primary,
-            },
-          ]}
-          onPress={() =>
-            router.push("/onboarding/personal-info")
-          }
-        >
-          <Text
-            style={[
-              styles.primaryButtonText,
-              {
-                color: "#111111",
-              },
-            ]}
-          >
-            Complete Profile
-          </Text>
-        </Pressable>
-      </View>
-    );
-  }
+  const totalDifference =
+    plan.targetCalories - plan.totalCalories;
 
   return (
     <View
       style={[
-        styles.container,
-        {
-          backgroundColor: colors.background,
-        },
+        styles.screen,
+        { backgroundColor: colors.background },
       ]}
     >
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[
-          styles.content,
-          {
-            maxWidth: isDesktop ? 1120 : 620,
-            paddingHorizontal: isCompact ? 16 : 20,
-          },
-        ]}
+        contentContainerStyle={styles.scrollContent}
       >
-        <View style={styles.header}>
-          <View style={styles.headerText}>
-            <View style={styles.eyebrowRow}>
-              <View
-                style={[
-                  styles.eyebrowDot,
-                  {
-                    backgroundColor: colors.primary,
-                  },
-                ]}
-              />
-
-              <Text
-                style={[
-                  styles.eyebrow,
-                  {
-                    color: colors.primary,
-                  },
-                ]}
-              >
-                TODAY'S PLAN
-              </Text>
-            </View>
-
-            <Text
-              style={[
-                styles.title,
-                {
-                  color: colors.text,
-                  fontSize: isCompact ? 28 : 32,
-                },
-              ]}
-            >
-              Your Nutrition Plan
-            </Text>
-<Text
-              style={[
-                styles.subtitle,
-                {
-                  color: colors.subtext,
-                },
-              ]}
-            >
-              Built around your {goalText} goal.
-            </Text>
-
-            <Text
-              style={[
-                styles.profileSummary,
-                {
-                  color: colors.subtext,
-                },
-              ]}
-            >
-              {profileSummary}
-            </Text>
-          </View>
-
-          <View
-            style={[
-              styles.dateBadge,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <Ionicons
-              name="calendar-outline"
-              size={17}
-              color={colors.primary}
-            />
-
-            <Text
-              style={[
-                styles.dateText,
-                {
-                  color: colors.text,
-                },
-              ]}
-            >
-              Today
-            </Text>
-          </View>
-        </View>
-
         <View
           style={[
-            styles.heroCard,
-            {
-              backgroundColor: isDark
-                ? "#15181C"
-                : colors.card,
-              borderColor: colors.border,
-            },
+            styles.content,
+            { width: contentWidth },
           ]}
         >
-          <View style={styles.heroTop}>
-            <View style={styles.heroIconWrapper}>
-              <Ionicons
-                name="flame"
-                size={24}
-                color="#111111"
-              />
-            </View>
-
-            <View style={styles.heroTitleBlock}>
-              <Text
-                style={[
-                  styles.heroEyebrow,
-                  {
-                    color: colors.subtext,
-                  },
-                ]}
-              >
-                DAILY CALORIE TARGET
-              </Text>
-
-              <Text
-                style={[
-                  styles.heroCalories,
-                  {
-                    color: colors.text,
-                  },
-                ]}
-              >
-                {Math.round(targetCalories)}
-                <Text
+          <View style={styles.header}>
+            <View style={styles.headerText}>
+              <View style={styles.eyebrowRow}>
+                <View
                   style={[
-                    styles.heroCaloriesUnit,
-                    {
-                      color: colors.subtext,
+                    styles.eyebrowIcon,
+{
+                      backgroundColor: isDark
+                        ? "#22271A"
+                        : "#F1F7D9",
                     },
                   ]}
                 >
-                  {" "}
-                  kcal
+                  <Ionicons
+                    name="calendar-outline"
+                    size={15}
+                    color={colors.primary}
+                  />
+                </View>
+
+                <Text
+                  style={[
+                    styles.eyebrow,
+                    { color: colors.subtext },
+                  ]}
+                >
+                  TODAY'S PLAN
                 </Text>
+              </View>
+
+              <Text
+                style={[
+                  styles.title,
+                  { color: colors.text },
+                ]}
+              >
+                Eat with intention.
+              </Text>
+
+              <Text
+                style={[
+                  styles.subtitle,
+                  { color: colors.subtext },
+                ]}
+              >
+                Personalized for your {goalText} goal.
               </Text>
             </View>
 
             <View
               style={[
-                styles.targetStatus,
+                styles.todayBadge,
                 {
-                  backgroundColor:
-                    calorieProgress >= 1
-                      ? isDark
-                        ? "#2A1717"
-                        : "#FEECEC"
-                      : isDark
-                        ? "#20280E"
-                        : "#F1F8D2",
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
                 },
               ]}
             >
               <Ionicons
-                name={
-                  calorieProgress >= 1
-                    ? "checkmark-circle"
-                    : "flash"
-                }
-                size={15}
-                color={
-                  calorieProgress >= 1
-                    ? colors.danger
-                    : colors.primary
-                }
+                name="calendar"
+                size={17}
+                color={colors.primary}
               />
 
               <Text
                 style={[
-                  styles.targetStatusText,
-                  {
-                    color:
-                      calorieProgress >= 1
-                        ? colors.danger
-                        : colors.primary,
-                  },
+                  styles.todayText,
+                  { color: colors.text },
                 ]}
               >
-                {calorieProgress >= 1
-                  ? "Target reached"
-                  : "On track"}
+                Today
               </Text>
             </View>
           </View>
 
-          <View style={styles.calorieProgressRow}>
-            <View
-              style={[
-                styles.progressTrack,
-                {
-                  backgroundColor: isDark
-                    ? "#292D34"
-                    : "#E5E7EB",
-                },
-              ]}
-            >
-              {calorieProgress > 0 && (
-                <View
-                  style={[
-                    styles.progressFill,
-                    {
-                      width: `${Math.min(
-                        calorieProgress * 100,
-                        100
-                      )}%`,
-                      backgroundColor: colors.primary,
-                    },
-                  ]}
-                />
-              )}
-            </View>
-
-            <Text
-              style={[
-                styles.progressPercent,
-                {
-                  color: colors.text,
-                },
-              ]}
-            >
-              {Math.round(calorieProgress * 100)}%
-            </Text>
-          </View>
-
-          <View style={styles.heroBottom}>
-            <View>
-              <Text
-                style={[
-                  styles.heroMetricLabel,
-                  {
-                    color: colors.subtext,
-                  },
-                ]}
-              >
-                EATEN
-              </Text>
-
-              <Text
-                style={[
-                  styles.heroMetricValue,
-                  {
-                    color: colors.text,
-                  },
-                ]}
-              >
-                {Math.round(consumedCalories)}
-              </Text>
-            </View>
-
-            <View style={styles.heroDivider} />
-
-            <View>
-              <Text
-                style={[
-                  styles.heroMetricLabel,
-                  {
-                    color: colors.subtext,
-                  },
-                ]}
-              >
-                REMAINING
-              </Text>
-
-              <Text
-                style={[
-                  styles.heroMetricValue,
-                  {
-                    color:
-                      calorieRemaining > 0
-                        ? colors.primary
-                        : colors.danger,
-                  },
-                ]}
-              >
-                {Math.round(calorieRemaining)}
-              </Text>
-            </View>
-
-            <View style={styles.heroDivider} />
-
-            <View>
-              <Text
-                style={[
-                  styles.heroMetricLabel,
-                  {
-                    color: colors.subtext,
-                  },
-                ]}
-              >
-                LOGGED
-              </Text>
-
-              <Text
-                style={[
-                  styles.heroMetricValue,
-                  {
-                    color: colors.text,
-                  },
-                ]}
-              >
-                {loggedMealCount}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <View>
-            <Text
-              style={[
-                styles.sectionTitle,
-                {
-                  color: colors.text,
-                },
-              ]}
-            >
-              Your daily targets
-            </Text>
-
-            <Text
-              style={[
-                styles.sectionSubtitle,
-                {
-                  color: colors.subtext,
-                },
-              ]}
-            >
-              Keep these numbers in sight today.
-            </Text>
-          </View>
-
-          <Ionicons
-            name="options-outline"
-            size={21}
-            color={colors.subtext}
-          />
-        </View>
-
-        <View style={styles.macroGrid}>
-          <MacroCard
-            icon="fitness-outline"
-            label="Protein"
-            value={`${Math.round(targetProtein)}g`}
-            consumed={consumedProtein}
-            target={targetProtein}
-            color="#F97316"
-            colors={colors}
-            isDark={isDark}
-          />
-<MacroCard
-            icon="leaf-outline"
-            label="Carbs"
-            value={`${Math.round(targetCarbs)}g`}
-            consumed={consumedCarbs}
-            target={targetCarbs}
-            color="#22C55E"
-            colors={colors}
-            isDark={isDark}
-          />
-
-          <MacroCard
-            icon="water-outline"
-            label="Fat"
-            value={`${Math.round(targetFat)}g`}
-            consumed={consumedFat}
-            target={targetFat}
-            color="#38BDF8"
-            colors={colors}
-            isDark={isDark}
-          />
-
-          <MacroCard
-            icon="nutrition-outline"
-            label="Fiber"
-            value={`${Math.round(plan.targetFiber)}g`}
-            consumed={0}
-            target={plan.targetFiber}
-            color="#A78BFA"
-            colors={colors}
-            isDark={isDark}
-          />
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionHeaderText}>
-            <Text
-              style={[
-                styles.sectionTitle,
-                {
-                  color: colors.text,
-                },
-              ]}
-            >
-              Recommended meals
-            </Text>
-
-            <Text
-              style={[
-                styles.sectionSubtitle,
-                {
-                  color: colors.subtext,
-                },
-              ]}
-            >
-              Portions are calculated from your daily
-              nutrition target.
-            </Text>
-          </View>
-
-          <Pressable
+          <View
             style={[
-              styles.refreshButton,
+              styles.targetCard,
               {
                 backgroundColor: colors.card,
                 borderColor: colors.border,
               },
             ]}
-            onPress={() => {
-              setPlan(
-                createDailyPlan(profile)
-              );
-            }}
           >
-            <Ionicons
-              name="refresh-outline"
-              size={18}
-              color={colors.primary}
+            <View style={styles.targetMain}>
+              <View
+                style={[
+                  styles.targetIcon,
+                  {
+                    backgroundColor: isDark
+                      ? "#252315"
+                      : "#FFF7D9",
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="flame-outline"
+                  size={23}
+                  color={colors.secondary}
+                />
+              </View>
+
+              <View style={styles.targetInfo}>
+                <Text
+                  style={[
+                    styles.cardEyebrow,
+                    { color: colors.subtext },
+                  ]}
+                >
+                  DAILY CALORIE TARGET
+                </Text>
+
+                <View style={styles.calorieRow}>
+                  <Text
+                    style={[
+                      styles.calories,
+                      { color: colors.text },
+                    ]}
+                  >
+                    {plan.targetCalories}
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.calorieUnit,
+                      { color: colors.subtext },
+                    ]}
+                  >
+                    kcal
+                  </Text>
+                </View>
+
+                <Text
+                  style={[
+                    styles.targetDescription,
+                    { color: colors.subtext },
+                  ]}
+                >
+                  Calculated from your age, body
+                  measurements, activity level and goal.
+                </Text>
+              </View>
+            </View>
+
+            <View
+              style={[
+                styles.goalPill,
+                {
+                  backgroundColor: isDark
+                    ? "#22271A"
+                    : "#F1F7D9",
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.goalDot,
+                  { backgroundColor: colors.primary },
+                ]}
+              />
+<Text
+                style={[
+                  styles.goalPillText,
+                  { color: colors.text },
+                ]}
+              >
+                {goalText}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.macroGrid}>
+            <MacroCard
+              icon="fitness-outline"
+              label="Protein"
+              value={`${plan.targetProtein}g`}
+              colors={colors}
             />
-          </Pressable>
-        </View>
 
-        {plan.meals.map((meal) => (
-          <MealRecommendationCard
-            key={meal.meal}
-            meal={meal}
-            colors={colors}
-            isDark={isDark}
-          />
-        ))}
+            <MacroCard
+              icon="leaf-outline"
+              label="Carbs"
+              value={`${plan.targetCarbohydrates}g`}
+              colors={colors}
+            />
 
-        <View
-          style={[
-            styles.planSummary,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <View style={styles.summaryIcon}>
-            <Ionicons
-              name="analytics-outline"
-              size={21}
-              color={colors.primary}
+            <MacroCard
+              icon="water-outline"
+              label="Fat"
+              value={`${plan.targetFat}g`}
+              colors={colors}
+            />
+
+            <MacroCard
+              icon="nutrition-outline"
+              label="Fiber"
+              value={`${plan.targetFiber}g`}
+              colors={colors}
             />
           </View>
 
-          <View style={styles.summaryInfo}>
-            <Text
-              style={[
-                styles.summaryLabel,
-                {
-                  color: colors.subtext,
-                },
-              ]}
-            >
-              RECOMMENDED PLAN TOTAL
-            </Text>
-
-            <Text
-              style={[
-                styles.summaryTitle,
-                {
-                  color: colors.text,
-                },
-              ]}
-            >
-              {plan.totalCalories} kcal
-            </Text>
-          </View>
-
-          <View style={styles.summaryTargetBlock}>
-            <Text
-              style={[
-                styles.summaryTargetLabel,
-                {
-                  color: colors.subtext,
-                },
-              ]}
-            >
-              TARGET
-            </Text>
-
-            <Text
-              style={[
-                styles.summaryTarget,
-                {
-                  color: colors.primary,
-                },
-              ]}
-            >
-              {Math.round(plan.targetCalories)}
-            </Text>
-          </View>
-        </View>
-<View style={styles.sectionHeader}>
-          <View>
-            <Text
-              style={[
-                styles.sectionTitle,
-                {
-                  color: colors.text,
-                },
-              ]}
-            >
-              Quick actions
-            </Text>
-
-            <Text
-              style={[
-                styles.sectionSubtitle,
-                {
-                  color: colors.subtext,
-                },
-              ]}
-            >
-              Keep your plan updated as you go.
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.actionGrid}>
-          <ActionCard
-            icon="add-circle-outline"
-            title="Log a meal"
-            subtitle="Track what you ate"
-            onPress={() =>
-              router.push("/dashboard/meals")
-            }
+          <SectionHeader
+            title="Recommended meals"
+            subtitle="Portions are calculated from your daily nutrition target."
             colors={colors}
           />
 
-          <ActionCard
-            icon="scan-outline"
-            title="Scan food"
-            subtitle="Check a food item"
-            onPress={() =>
-              router.push("/dashboard/meals")
-            }
-            colors={colors}
-          />
+          {plan.meals.map((meal) => (
+            <MealRecommendationCard
+              key={meal.meal}
+              meal={meal}
+              colors={colors}
+              isDark={isDark}
+            />
+          ))}
 
-          <ActionCard
-            icon="water-outline"
-            title="Track water"
-            subtitle="Update hydration"
-            onPress={() =>
-              router.push("/dashboard/water")
-            }
-            colors={colors}
-          />
+          <View
+            style={[
+              styles.summaryCard,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <View style={styles.summaryLeft}>
+              <Text
+                style={[
+                  styles.summaryEyebrow,
+                  { color: colors.subtext },
+                ]}
+              >
+                PLAN TOTAL
+              </Text>
 
-          <ActionCard
-            icon="barbell-outline"
+              <View style={styles.summaryCaloriesRow}>
+                <Text
+                  style={[
+                    styles.summaryCalories,
+                    { color: colors.text },
+                  ]}
+                >
+                  {plan.totalCalories}
+                </Text>
+
+                <Text
+                  style={[
+                    styles.summaryUnit,
+                    { color: colors.subtext },
+                  ]}
+                >
+                  kcal
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.summaryRight}>
+              <Text
+                style={[
+                  styles.summaryTargetLabel,
+                  { color: colors.subtext },
+                ]}
+              >
+                Target
+              </Text>
+
+              <Text
+                style={[
+                  styles.summaryTargetValue,
+                  { color: colors.text },
+                ]}
+              >
+                {plan.targetCalories} kcal
+              </Text>
+
+              <Text
+                style={[
+                  styles.summaryDifference,
+                  {
+                    color:
+                      totalDifference >= 0
+                        ? colors.success
+                        : colors.warning,
+                  },
+                ]}
+              >
+                {totalDifference >= 0 ? "+" : ""}
+                {totalDifference} kcal
+              </Text>
+            </View>
+          </View>
+
+          <SectionHeader
             title="Workout"
-            subtitle="View today's activity"
+            subtitle="Your activity for today"
+            colors={colors}
+          />
+
+          <Pressable
             onPress={() =>
               router.push("/dashboard/workouts")
             }
+            style={({ pressed }) => [
+              styles.workoutCard,
+              {
+                backgroundColor: colors.card,
+borderColor: colors.border,
+                opacity: pressed ? 0.78 : 1,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.workoutIcon,
+                {
+                  backgroundColor: isDark
+                    ? "#22271A"
+                    : "#F1F7D9",
+                },
+              ]}
+            >
+              <Ionicons
+                name="barbell-outline"
+                size={25}
+                color={colors.primary}
+              />
+            </View>
+
+            <View style={styles.workoutInfo}>
+              <Text
+                style={[
+                  styles.workoutTitle,
+                  { color: colors.text },
+                ]}
+              >
+                Today's workout
+              </Text>
+
+              <Text
+                style={[
+                  styles.workoutDescription,
+                  { color: colors.subtext },
+                ]}
+              >
+                View your personalized workout
+                recommendations based on your profile.
+              </Text>
+            </View>
+
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={colors.subtext}
+            />
+          </Pressable>
+
+          <SectionHeader
+            title="Daily checklist"
+            subtitle="Simple actions to keep your day on track."
             colors={colors}
           />
-        </View>
 
-        <View
-          style={[
-            styles.insightCard,
-            {
-              backgroundColor: isDark
-                ? "#141A0B"
-                : "#F4F9DD",
-              borderColor: isDark
-                ? "#34420F"
-                : "#DCE9A0",
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.insightIcon,
+          <ChecklistItem
+            icon="restaurant-outline"
+            title="Complete your recommended meals"
+            colors={colors}
+          />
+
+          <ChecklistItem
+            icon="water-outline"
+            title="Reach your water goal"
+            colors={colors}
+          />
+
+          <ChecklistItem
+            icon="walk-outline"
+            title="Reach your daily activity target"
+            colors={colors}
+          />
+
+          <ChecklistItem
+            icon="barbell-outline"
+            title="Complete your workout"
+            colors={colors}
+          />
+
+          <ChecklistItem
+            icon="checkmark-circle-outline"
+            title="Stay within your daily nutrition targets"
+            colors={colors}
+          />
+
+          <Pressable
+            onPress={() => router.replace("/home")}
+            style={({ pressed }) => [
+              styles.backButton,
               {
-                backgroundColor: isDark
-                  ? "#28350C"
-                  : "#E6F2AF",
+                borderColor: colors.border,
+                backgroundColor: colors.card,
+                opacity: pressed ? 0.7 : 1,
               },
             ]}
           >
             <Ionicons
-              name="bulb-outline"
-              size={21}
-              color={colors.primary}
+              name="arrow-back"
+              size={18}
+              color={colors.text}
             />
-          </View>
-
-          <View style={styles.insightContent}>
-            <Text
-              style={[
-                styles.insightTitle,
-                {
-                  color: colors.text,
-                },
-              ]}
-            >
-              Today's focus
-            </Text>
 
             <Text
               style={[
-                styles.insightText,
-                {
-                  color: colors.subtext,
-                },
+                styles.backText,
+                { color: colors.text },
               ]}
             >
-              Follow your recommended portions and
-              update your meals as you eat. Your
-              progress is calculated from your real
-              logged data.
+              Back to Home
             </Text>
-          </View>
+          </Pressable>
         </View>
-
-        <Pressable
-          style={styles.profileLink}
-          onPress={() =>
-            router.push("/dashboard/profile")
-          }
-        >
-          <Ionicons
-            name="person-outline"
-            size={17}
-            color={colors.subtext}
-          />
-
-          <Text
-            style={[
-              styles.profileLinkText,
-              {
-                color: colors.subtext,
-              },
-            ]}
-          >
-            Nutrition targets are based on your profile
-          </Text>
-
-          <Ionicons
-            name="chevron-forward"
-            size={17}
-            color={colors.subtext}
-          />
-        </Pressable>
       </ScrollView>
     </View>
   );
@@ -1013,42 +592,21 @@ if (loading) {
 
 function MacroCard({
   icon,
-label,
+  label,
   value,
-  consumed,
-  target,
-  color,
   colors,
-  isDark,
 }: {
-  icon: IconName;
+  icon: keyof typeof Ionicons.glyphMap;
   label: string;
   value: string;
-  consumed: number;
-  target: number;
-  color: string;
   colors: {
-    background: string;
-    card: string;
     text: string;
     subtext: string;
-    primary: string;
-    secondary: string;
+    card: string;
     border: string;
-    success: string;
-    warning: string;
-    danger: string;
+    primary: string;
   };
-  isDark: boolean;
 }) {
-  const progress =
-    target > 0
-      ? Math.min(
-          Math.max(consumed / target, 0),
-          1
-        )
-      : 0;
-
   return (
     <View
       style={[
@@ -1059,42 +617,16 @@ label,
         },
       ]}
     >
-      <View style={styles.macroTop}>
-        <View
-          style={[
-            styles.macroIcon,
-            {
-              backgroundColor: isDark
-                ? "#20242B"
-                : "#F3F4F6",
-            },
-          ]}
-        >
-          <Ionicons
-            name={icon}
-            size={18}
-            color={color}
-          />
-        </View>
-
-        <Text
-          style={[
-            styles.macroLabel,
-            {
-              color: colors.subtext,
-            },
-          ]}
-        >
-          {label}
-        </Text>
-      </View>
+      <Ionicons
+        name={icon}
+        size={19}
+        color={colors.primary}
+      />
 
       <Text
         style={[
           styles.macroValue,
-          {
-            color: colors.text,
-          },
+          { color: colors.text },
         ]}
       >
         {value}
@@ -1102,37 +634,47 @@ label,
 
       <Text
         style={[
-          styles.macroConsumed,
-          {
-            color: colors.subtext,
-          },
+          styles.macroLabel,
+          { color: colors.subtext },
         ]}
       >
-        {Math.round(consumed)}g consumed
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function SectionHeader({
+title,
+  subtitle,
+  colors,
+}: {
+  title: string;
+  subtitle: string;
+  colors: {
+    text: string;
+    subtext: string;
+  };
+}) {
+  return (
+    <View style={styles.sectionHeader}>
+      <Text
+        style={[
+          styles.sectionTitle,
+          { color: colors.text },
+        ]}
+      >
+        {title}
       </Text>
 
-      <View
+      <Text
         style={[
-          styles.macroTrack,
-          {
-            backgroundColor: isDark
-              ? "#292D34"
-              : "#E5E7EB",
-          },
+          styles.sectionSubtitle,
+          { color: colors.subtext },
         ]}
       >
-        {progress > 0 && (
-          <View
-            style={[
-              styles.macroFill,
-              {
-                width: `${progress * 100}%`,
-                backgroundColor: color,
-              },
-            ]}
-          />
-        )}
-      </View>
+        {subtitle}
+      </Text>
     </View>
   );
 }
@@ -1144,20 +686,15 @@ function MealRecommendationCard({
 }: {
   meal: PlannedMeal;
   colors: {
-    background: string;
-    card: string;
     text: string;
     subtext: string;
-    primary: string;
-    secondary: string;
+    card: string;
     border: string;
-    success: string;
-    warning: string;
-    danger: string;
+    primary: string;
   };
   isDark: boolean;
 }) {
-  const mealStyle = mealColors[meal.meal];
+  const accent = mealColors[meal.meal];
 
   return (
     <View
@@ -1174,17 +711,16 @@ function MealRecommendationCard({
           style={[
             styles.mealIcon,
             {
-              backgroundColor:
-                isDark
-                  ? mealStyle.background
-                  : "#F5F5F5",
+              backgroundColor: isDark
+                ? `${accent}18`
+                : `${accent}14`,
             },
           ]}
         >
           <Ionicons
             name={mealIcons[meal.meal]}
             size={23}
-            color={mealStyle.icon}
+            color={accent}
           />
         </View>
 
@@ -1192,9 +728,7 @@ function MealRecommendationCard({
           <Text
             style={[
               styles.mealTitle,
-              {
-                color: colors.text,
-              },
+              { color: colors.text },
             ]}
           >
             {meal.title}
@@ -1202,112 +736,68 @@ function MealRecommendationCard({
 
           <Text
             style={[
-              styles.mealSubtitle,
-              {
-                color: colors.subtext,
-              },
+              styles.mealCalories,
+              { color: colors.subtext },
             ]}
           >
-            {meal.portions.length} recommended food
-            {meal.portions.length === 1 ? "" : "s"}
+            {meal.calories} kcal
           </Text>
         </View>
 
-        <View style={styles.mealCaloriesBlock}>
+        <View
+          style={[
+            styles.mealTarget,
+            {
+              backgroundColor: isDark
+                ? "#202228"
+                : "#F3F4F6",
+            },
+          ]}
+        >
           <Text
             style={[
-              styles.mealCalories,
-              {
-                color: colors.text,
-              },
+              styles.mealTargetLabel,
+              { color: colors.subtext },
             ]}
           >
-            {meal.calories}
+            TARGET
           </Text>
-<Text
+
+          <Text
             style={[
-              styles.mealCaloriesUnit,
-              {
-                color: colors.subtext,
-              },
+              styles.mealTargetValue,
+              { color: colors.text },
             ]}
           >
-            kcal
+            {meal.targetCalories} kcal
           </Text>
         </View>
       </View>
 
       <View
         style={[
-          styles.mealTargetRow,
-          {
-            backgroundColor: isDark
-              ? "#1B1E24"
-              : "#F7F7F7",
-          },
+          styles.foodList,
+          { borderTopColor: colors.border },
         ]}
       >
-        <View style={styles.mealTargetLeft}>
-          <Ionicons
-            name="pie-chart-outline"
-            size={15}
-            color={colors.primary}
-          />
-
-          <Text
-            style={[
-              styles.mealTargetText,
-              {
-                color: colors.subtext,
-              },
-            ]}
-          >
-            Meal target
-          </Text>
-        </View>
-
-        <Text
-          style={[
-            styles.mealTargetValue,
-            {
-              color: colors.text,
-            },
-          ]}
-        >
-          {meal.targetCalories} kcal
-        </Text>
-      </View>
-
-      <View style={styles.foodList}>
         {meal.portions.map((portion) => (
           <View
-            key={`${meal.meal}-${portion.food.id}`}
+            key={portion.food.id}
             style={styles.foodItem}
           >
             <View
               style={[
-                styles.foodBullet,
-                {
-                  backgroundColor: colors.primary,
-                },
+                styles.foodDot,
+                { backgroundColor: colors.primary },
               ]}
-            >
-              <Ionicons
-                name="checkmark"
-                size={11}
-                color="#111111"
-              />
-            </View>
+            />
 
             <View style={styles.foodInfo}>
               <Text
                 style={[
                   styles.foodName,
-                  {
-                    color: colors.text,
-                  },
+                  { color: colors.text },
                 ]}
-                numberOfLines={1}
               >
                 {portion.food.nameEnglish}
               </Text>
@@ -1315,121 +805,88 @@ function MealRecommendationCard({
               <Text
                 style={[
                   styles.foodDetails,
-                  {
-                    color: colors.subtext,
-                  },
+                  { color: colors.subtext },
                 ]}
               >
                 {portion.grams} g ·{" "}
-                {Math.round(
-                  portion.nutrition.calories
-                )} kcal ·{" "}
-                {Math.round(
-                  portion.nutrition.protein
-                )}g protein
+                {portion.nutrition.calories} kcal ·{" "}
+                {portion.nutrition.protein}g protein
               </Text>
             </View>
           </View>
         ))}
 
         {meal.portions.length === 0 && (
-          <View style={styles.emptyMeal}>
+          <View style={styles.noFoodRow}>
             <Ionicons
               name="information-circle-outline"
-              size={20}
-              color={colors.warning}
+              size={17}
+              color={colors.subtext}
             />
 
             <Text
               style={[
                 styles.noFoodText,
-                {
-                  color: colors.subtext,
-                },
+                { color: colors.subtext },
               ]}
             >
-              No suitable foods were found for this
-              meal.
+              No suitable foods found for this meal.
             </Text>
           </View>
         )}
       </View>
-
-      <View
+<View
         style={[
           styles.mealMacros,
-          {
-            borderTopColor: colors.border,
-          },
+          { borderTopColor: colors.border },
         ]}
       >
-        <MealMacro
+        <MacroValue
           label="Protein"
           value={`${meal.protein}g`}
-          icon="fitness-outline"
           colors={colors}
         />
 
-        <MealMacro
+        <MacroValue
           label="Carbs"
           value={`${meal.carbohydrates}g`}
-          icon="leaf-outline"
           colors={colors}
         />
 
-        <MealMacro
+        <MacroValue
           label="Fat"
           value={`${meal.fat}g`}
-          icon="water-outline"
           colors={colors}
         />
 
-        <MealMacro
+        <MacroValue
           label="Fiber"
           value={`${meal.fiber}g`}
-          icon="nutrition-outline"
           colors={colors}
         />
       </View>
     </View>
   );
 }
-function MealMacro({
+
+function MacroValue({
   label,
   value,
-  icon,
   colors,
 }: {
   label: string;
   value: string;
-  icon: IconName;
   colors: {
-    background: string;
-    card: string;
     text: string;
     subtext: string;
-    primary: string;
-    secondary: string;
-    border: string;
-    success: string;
-    warning: string;
-    danger: string;
   };
 }) {
   return (
     <View style={styles.mealMacro}>
-      <Ionicons
-        name={icon}
-        size={14}
-        color={colors.subtext}
-      />
-
       <Text
         style={[
           styles.mealMacroValue,
-          {
-            color: colors.text,
-          },
+          { color: colors.text },
         ]}
       >
         {value}
@@ -1438,9 +895,7 @@ function MealMacro({
       <Text
         style={[
           styles.mealMacroLabel,
-          {
-            color: colors.subtext,
-          },
+          { color: colors.subtext },
         ]}
       >
         {label}
@@ -1449,105 +904,82 @@ function MealMacro({
   );
 }
 
-function ActionCard({
+function ChecklistItem({
   icon,
   title,
-  subtitle,
-  onPress,
   colors,
 }: {
-  icon: IconName;
+  icon: keyof typeof Ionicons.glyphMap;
   title: string;
-  subtitle: string;
-  onPress: () => void;
   colors: {
-    background: string;
-    card: string;
     text: string;
     subtext: string;
-    primary: string;
-    secondary: string;
+    card: string;
     border: string;
-    success: string;
-    warning: string;
-    danger: string;
+    primary: string;
   };
 }) {
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.actionCard,
+    <View
+      style={[
+        styles.checkItem,
         {
           backgroundColor: colors.card,
           borderColor: colors.border,
-          opacity: pressed ? 0.72 : 1,
         },
       ]}
-      onPress={onPress}
     >
       <View
         style={[
-          styles.actionIcon,
+          styles.checkIcon,
           {
-            backgroundColor: colors.primary,
+            backgroundColor: "rgba(215,245,44,0.10)",
           },
         ]}
       >
         <Ionicons
           name={icon}
-          size={20}
-          color="#111111"
+          size={19}
+          color={colors.primary}
         />
       </View>
 
-      <View style={styles.actionInfo}>
-        <Text
-          style={[
-            styles.actionTitle,
-            {
-              color: colors.text,
-            },
-          ]}
-        >
-          {title}
-        </Text>
+      <Text
+        style={[
+          styles.checkText,
+          { color: colors.text },
+        ]}
+      >
+        {title}
+      </Text>
 
-        <Text
-          style={[
-            styles.actionSubtitle,
-            {
-              color: colors.subtext,
-            },
-          ]}
-          numberOfLines={1}
-        >
-          {subtitle}
-        </Text>
-      </View>
-
-      <Ionicons
-        name="chevron-forward"
-        size={17}
-        color={colors.subtext}
+      <View
+        style={[
+          styles.emptyCircle,
+          { borderColor: colors.border },
+        ]}
       />
-    </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
     minWidth: 0,
   },
 
-  content: {
-    width: "100%",
-    alignSelf: "center",
-    paddingTop: Platform.OS === "ios" ? 22 : 20,
-    paddingBottom: 40,
+  scrollContent: {
+    paddingHorizontal: 18,
+    paddingTop: 28,
+    paddingBottom: 48,
   },
 
-  loadingContainer: {
+  content: {
+    alignSelf: "center",
+  },
+
+  loadingScreen: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
@@ -1555,69 +987,54 @@ const styles = StyleSheet.create({
   },
 
   loadingIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
+    width: 62,
+    height: 62,
+    borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  loadingSpinner: {
-    marginTop: 20,
+  loadingIndicator: {
+    marginTop: 16,
   },
 
   loadingTitle: {
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: "900",
     marginTop: 12,
   },
 
   loadingText: {
-    maxWidth: 310,
+    fontSize: 12,
+    marginTop: 6,
     textAlign: "center",
-    fontSize: 13,
-    lineHeight: 19,
-    marginTop: 7,
-  },
-
-  primaryButton: {
-    marginTop: 22,
-    minHeight: 48,
-    borderRadius: 14,
-    paddingHorizontal: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  primaryButtonText: {
-    fontSize: 14,
-    fontWeight: "900",
   },
 
   header: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    marginBottom: 20,
+    marginBottom: 22,
   },
 
   headerText: {
     flex: 1,
-    minWidth: 0,
-    paddingRight: 12,
+    paddingRight: 15,
   },
 
   eyebrowRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 7,
+    marginBottom: 9,
   },
 
-  eyebrowDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    marginRight: 7,
+  eyebrowIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
   },
 
   eyebrow: {
@@ -1627,6 +1044,8 @@ const styles = StyleSheet.create({
   },
 
   title: {
+    fontSize: 29,
+    lineHeight: 35,
     fontWeight: "900",
     letterSpacing: -0.7,
   },
@@ -1634,516 +1053,416 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 13,
     lineHeight: 19,
-    marginTop: 5,
+    marginTop: 6,
   },
 
-  profileSummary: {
-    fontSize: 11,
-    marginTop: 5,
-  },
-dateBadge: {
-    minHeight: 38,
+  todayBadge: {
+    minHeight: 42,
+    borderRadius: 13,
+    borderWidth: 1,
+    paddingHorizontal: 11,
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 11,
-    marginTop: 1,
+    marginLeft: 8,
   },
 
-  dateText: {
+  todayText: {
     fontSize: 11,
     fontWeight: "800",
     marginLeft: 6,
   },
 
-  heroCard: {
+  targetCard: {
+    borderRadius: 23,
     borderWidth: 1,
-    borderRadius: 22,
     padding: 18,
-    marginBottom: 24,
-    overflow: "hidden",
+    marginBottom: 12,
   },
 
-  heroTop: {
+  targetMain: {
     flexDirection: "row",
     alignItems: "center",
   },
 
-  heroIconWrapper: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
-    backgroundColor: "#D7F52C",
+  targetIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
+    marginRight: 13,
   },
-
-  heroTitleBlock: {
+targetInfo: {
     flex: 1,
-    marginLeft: 13,
   },
 
-  heroEyebrow: {
+  cardEyebrow: {
     fontSize: 9,
     fontWeight: "900",
-    letterSpacing: 1.2,
+    letterSpacing: 1.3,
   },
 
-  heroCalories: {
-    fontSize: 25,
-    fontWeight: "900",
+  calorieRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
     marginTop: 2,
   },
 
-  heroCaloriesUnit: {
-    fontSize: 13,
-    fontWeight: "700",
-  },
-
-  targetStatus: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 10,
-    paddingHorizontal: 9,
-    paddingVertical: 7,
-  },
-
-  targetStatusText: {
-    fontSize: 9,
+  calories: {
+    fontSize: 34,
+    lineHeight: 40,
     fontWeight: "900",
-    marginLeft: 4,
+    letterSpacing: -1,
   },
 
-  calorieProgressRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 20,
+  calorieUnit: {
+    fontSize: 12,
+    fontWeight: "800",
+    marginLeft: 6,
+    marginBottom: 5,
   },
 
-  progressTrack: {
-    flex: 1,
-    height: 9,
-    borderRadius: 6,
-    overflow: "hidden",
-  },
-
-  progressFill: {
-    height: "100%",
-    borderRadius: 6,
-  },
-
-  progressPercent: {
-    width: 40,
-    textAlign: "right",
-    fontSize: 11,
-    fontWeight: "900",
-  },
-
-  heroBottom: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 18,
-  },
-
-  heroMetricLabel: {
-    fontSize: 8,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-  },
-
-  heroMetricValue: {
-    fontSize: 17,
-    fontWeight: "900",
-    marginTop: 2,
-  },
-
-  heroDivider: {
-    width: 1,
-    height: 31,
-    backgroundColor: "#30343B",
-    marginHorizontal: 22,
-  },
-
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 12,
-    marginTop: 2,
-  },
-
-  sectionHeaderText: {
-    flex: 1,
-    paddingRight: 10,
-  },
-
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "900",
-    letterSpacing: -0.2,
-  },
-
-  sectionSubtitle: {
-    fontSize: 11,
-    lineHeight: 17,
+  targetDescription: {
+    fontSize: 10,
+    lineHeight: 15,
     marginTop: 3,
+  },
+
+  goalPill: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 15,
+  },
+
+  goalDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+
+  goalPillText: {
+    fontSize: 10,
+    fontWeight: "800",
   },
 
   macroGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginHorizontal: -5,
-    marginBottom: 23,
+    marginBottom: 27,
   },
 
   macroCard: {
-    width: "50%",
+    width: "24%",
+    minWidth: 120,
+    minHeight: 96,
     borderWidth: 1,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 10,
-    paddingHorizontal: 12,
-    minHeight: 132,
-  },
-
-  macroTop: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  macroIcon: {
-    width: 31,
-    height: 31,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 8,
-  },
-
-  macroLabel: {
-    fontSize: 11,
-    fontWeight: "800",
+    borderRadius: 17,
+    padding: 13,
+    marginRight: 7,
+    marginBottom: 7,
   },
 
   macroValue: {
-    fontSize: 21,
+    fontSize: 17,
     fontWeight: "900",
-    marginTop: 14,
+    marginTop: 10,
   },
 
-  macroConsumed: {
+  macroLabel: {
     fontSize: 9,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+
+  sectionHeader: {
+    marginBottom: 11,
+  },
+
+  sectionTitle: {
+    fontSize: 19,
+    fontWeight: "900",
+    letterSpacing: -0.3,
+  },
+
+  sectionSubtitle: {
+    fontSize: 10,
+    lineHeight: 16,
     marginTop: 3,
   },
 
-  macroTrack: {
-    height: 5,
-    borderRadius: 4,
-    marginTop: 12,
-    overflow: "hidden",
-  },
-
-  macroFill: {
-    height: "100%",
-    borderRadius: 4,
-  },
-
-  refreshButton: {
-    width: 39,
-    height: 39,
-    borderWidth: 1,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
   mealCard: {
+    borderRadius: 21,
     borderWidth: 1,
-    borderRadius: 18,
-    padding: 14,
-    marginBottom: 12,
+    marginBottom: 11,
     overflow: "hidden",
   },
 
   mealHeader: {
+    minHeight: 84,
     flexDirection: "row",
     alignItems: "center",
+    padding: 15,
   },
 
   mealIcon: {
-    width: 48,
-    height: 48,
+    width: 47,
+    height: 47,
     borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
+    marginRight: 12,
   },
 
   mealInfo: {
     flex: 1,
-    minWidth: 0,
-    marginLeft: 11,
   },
 
   mealTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "900",
-  },
-
-  mealSubtitle: {
-    fontSize: 10,
-    marginTop: 3,
-  },
-
-  mealCaloriesBlock: {
-    alignItems: "flex-end",
-    marginLeft: 8,
   },
 
   mealCalories: {
-    fontSize: 18,
-    fontWeight: "900",
-  },
-
-  mealCaloriesUnit: {
-    fontSize: 9,
-    marginTop: 1,
-  },
-mealTargetRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderRadius: 11,
-    paddingHorizontal: 11,
-    paddingVertical: 9,
-    marginTop: 13,
-  },
-
-  mealTargetLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  mealTargetText: {
     fontSize: 10,
     fontWeight: "700",
-    marginLeft: 6,
+    marginTop: 3,
+  },
+
+  mealTarget: {
+    minWidth: 72,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    alignItems: "flex-end",
+  },
+
+  mealTargetLabel: {
+    fontSize: 7,
+    fontWeight: "900",
+    letterSpacing: 0.8,
   },
 
   mealTargetValue: {
     fontSize: 10,
     fontWeight: "900",
+    marginTop: 2,
   },
 
   foodList: {
-    marginTop: 13,
+    borderTopWidth: 1,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
   },
 
   foodItem: {
     flexDirection: "row",
     alignItems: "center",
     minHeight: 43,
-    paddingVertical: 5,
   },
 
-  foodBullet: {
-    width: 24,
-    height: 24,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 9,
+  foodDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginRight: 10,
   },
 
   foodInfo: {
     flex: 1,
-    minWidth: 0,
   },
 
   foodName: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "800",
   },
 
   foodDetails: {
     fontSize: 9,
-    marginTop: 3,
+    marginTop: 2,
   },
 
-  emptyMeal: {
+  noFoodRow: {
+    minHeight: 40,
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 7,
   },
 
   noFoodText: {
-    flex: 1,
-    fontSize: 11,
-    lineHeight: 16,
-    marginLeft: 8,
+    fontSize: 10,
+    marginLeft: 7,
   },
 
   mealMacros: {
+    minHeight: 62,
+    borderTopWidth: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    borderTopWidth: 1,
-    paddingTop: 13,
-    marginTop: 9,
+    justifyContent: "space-around",
   },
 
   mealMacro: {
     alignItems: "center",
-    minWidth: 52,
+    minWidth: 65,
   },
 
   mealMacroValue: {
     fontSize: 11,
     fontWeight: "900",
-    marginTop: 3,
   },
 
   mealMacroLabel: {
     fontSize: 8,
-    marginTop: 2,
+    fontWeight: "700",
+    marginTop: 3,
   },
 
-  planSummary: {
-    minHeight: 78,
+  summaryCard: {
+    minHeight: 92,
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16,
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderRadius: 17,
-    paddingHorizontal: 14,
-    marginTop: 2,
-    marginBottom: 24,
+    justifyContent: "space-between",
+    marginTop: 4,
+    marginBottom: 28,
   },
 
-  summaryIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
-    backgroundColor: "#20280E",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  summaryInfo: {
+  summaryLeft: {
     flex: 1,
-    marginLeft: 11,
   },
 
-  summaryLabel: {
+  summaryEyebrow: {
     fontSize: 8,
     fontWeight: "900",
-    letterSpacing: 0.8,
+    letterSpacing: 1.2,
   },
 
-  summaryTitle: {
-    fontSize: 17,
+  summaryCaloriesRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    marginTop: 3,
+  },
+
+  summaryCalories: {
+    fontSize: 27,
     fontWeight: "900",
-    marginTop: 2,
   },
 
-  summaryTargetBlock: {
+  summaryUnit: {
+    fontSize: 10,
+    fontWeight: "800",
+    marginLeft: 5,
+    marginBottom: 4,
+  },
+
+  summaryRight: {
     alignItems: "flex-end",
   },
 
   summaryTargetLabel: {
     fontSize: 8,
-    fontWeight: "800",
+    fontWeight: "700",
   },
-
-  summaryTarget: {
-    fontSize: 15,
+summaryTargetValue: {
+    fontSize: 12,
     fontWeight: "900",
-    marginTop: 2,
-  },
-
-  actionGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginHorizontal: -5,
-    marginBottom: 18,
-  },
-
-  actionCard: {
-    width: "50%",
-    minHeight: 76,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 11,
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-
-  actionIcon: {
-    width: 37,
-    height: 37,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 9,
-  },
-
-  actionInfo: {
-    flex: 1,
-    minWidth: 0,
-  },
-
-  actionTitle: {
-    fontSize: 11,
-    fontWeight: "900",
-  },
-
-  actionSubtitle: {
-    fontSize: 8,
     marginTop: 3,
   },
 
-  insightCard: {
-    flexDirection: "row",
-    borderWidth: 1,
-    borderRadius: 17,
-    padding: 14,
-    marginBottom: 17,
-  },
-
-  insightIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  insightContent: {
-    flex: 1,
-    marginLeft: 11,
-  },
-
-  insightTitle: {
-    fontSize: 13,
+  summaryDifference: {
+    fontSize: 9,
     fontWeight: "900",
-  },
-
-  insightText: {
-    fontSize: 10,
-    lineHeight: 16,
     marginTop: 4,
   },
 
-  profileLink: {
-    minHeight: 42,
+  workoutCard: {
+    minHeight: 94,
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 15,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 28,
+  },
+
+  workoutIcon: {
+    width: 49,
+    height: 49,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 13,
+  },
+
+  workoutInfo: {
+    flex: 1,
+    paddingRight: 10,
+  },
+
+  workoutTitle: {
+    fontSize: 14,
+    fontWeight: "900",
+  },
+
+  workoutDescription: {
+    fontSize: 10,
+    lineHeight: 15,
+    marginTop: 4,
+  },
+
+  checkItem: {
+    minHeight: 62,
+    borderRadius: 17,
+    borderWidth: 1,
+    paddingHorizontal: 13,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+
+  checkIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 11,
+  },
+
+  checkText: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: "700",
+    lineHeight: 16,
+  },
+
+  emptyCircle: {
+    width: 21,
+    height: 21,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    marginLeft: 10,
+  },
+
+  backButton: {
+    minHeight: 50,
+    borderRadius: 15,
+    borderWidth: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 10,
+    marginTop: 12,
   },
 
-  profileLinkText: {
-    fontSize: 9,
-    marginHorizontal: 6,
+  backText: {
+    fontSize: 12,
+    fontWeight: "800",
+    marginLeft: 7,
   },
 });
