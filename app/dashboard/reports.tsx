@@ -93,7 +93,7 @@ export default function ReportsScreen() {
       return {
         title: "You're making progress",
         text:
-          "Keep tracking your meals, hydration, and movement to build a stronger day.",
+          "Keep tracking your meals, hydration, and movement to build a stronger day!",
         icon: "trending-up-outline" as IconName,
       };
     }
@@ -966,7 +966,7 @@ sectionSubtitle: {
   },
 
   progressTrack: {
-    height: 6,
+    height: 6.5,
     borderRadius: 8,
     backgroundColor: "#2A2B31",
     overflow: "hidden",
