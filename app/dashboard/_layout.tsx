@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
   },
 
   sidebarWrapper: {
-    width: 245,
+    width: 244,
     height: "100%",
     flexShrink: 0,
     overflow: "hidden",
@@ -87,6 +87,6 @@ const styles = StyleSheet.create({
     width: "100%",
     minWidth: 0,
     minHeight: 0,
-    paddingBottom: 85,
+    paddingBottom: 84,
   },
 });
